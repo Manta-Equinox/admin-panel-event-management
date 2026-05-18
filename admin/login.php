@@ -1,0 +1,62 @@
+<?php
+session_start();
+require_once __DIR__ . '/connect.php';
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    header("Location: index.php");
+    exit();
+}
+
+$email = trim($_POST['username'] ?? '');
+$password = trim($_POST['password'] ?? '');
+
+if ($email === '' || $password === '') {
+    echo "<script>
+        alert('Missing credentials');
+        window.location.href='index.php';
+    </script>";
+    exit();
+}
+
+$stmt = $dbc->prepare("SELECT staff_id, email, password, role FROM staff_users WHERE email = ? LIMIT 1");
+
+if (!$stmt) {
+    die("Database error: " . $dbc->error);
+}
+
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result && $result->num_rows === 1) {
+
+    $row = $result->fetch_assoc();
+
+
+    if ($password === $row['password']) {
+
+        $_SESSION['Aname'] = $row['email'];
+        $_SESSION['Aid'] = $row['staff_id'];
+        $_SESSION['role']  = $row['role']; 
+
+        header("Location: home.php");
+        exit();
+
+    } else {
+        echo "<script>
+            alert('Invalid Credentials');
+            window.location.href='index.php';
+        </script>";
+        exit();
+    }
+
+} else {
+    echo "<script>
+        alert('Invalid Credentials');
+        window.location.href='index.php';
+    </script>";
+}
+
+$stmt->close();
+$dbc->close();
+?>
