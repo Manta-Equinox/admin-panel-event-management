@@ -8,6 +8,11 @@ if (!isset($_SESSION['Aname'])) {
     exit();
 }
 
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header('location: ../../home.php');
+    exit();
+}
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("Invalid ID");
 }
@@ -18,7 +23,7 @@ if (!isset($dbc)) {
     die("Database connection failed.");
 }
 
-$stmt = $dbc->prepare("SELECT * FROM students WHERE student_id = ?");
+$stmt = $dbc->prepare("SELECT * FROM staff_users WHERE staff_id = ?");
 $stmt->bind_param("i", $id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -26,51 +31,56 @@ $result = $stmt->get_result();
 $r = $result->fetch_assoc();
 
 if (!$r) {
-    die("Student not found.");
+    die("User not found.");
 }
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $student_number = trim($_POST['student_number'] ?? '');
-    $first_name     = trim($_POST['first_name'] ?? '');
-    $last_name      = trim($_POST['last_name'] ?? '');
-    $email          = trim($_POST['email'] ?? '');
-    $course         = trim($_POST['course'] ?? '');
-    $year_level     = trim($_POST['year_level'] ?? '');
-    $status         = trim($_POST['status'] ?? 'active');
+    $name  = trim($_POST['name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $role  = trim($_POST['role'] ?? '');
+    $spec  = trim($_POST['specialization'] ?? '');
 
-    $update = $dbc->prepare("
-        UPDATE students 
-        SET student_number = ?,
-            first_name = ?,
-            last_name = ?,
-            email = ?,
-            course = ?,
-            year_level = ?,
-            status = ?
-        WHERE student_id = ?
-    ");
-
-    $update->bind_param(
-        "sssssssi",
-        $student_number,
-        $first_name,
-        $last_name,
-        $email,
-        $course,
-        $year_level,
-        $status,
-        $id
-    );
-
-    if ($update->execute()) {
-        header("Location: ../../user.php");
-        exit();
+    if ($name === '' || $email === '' || $role === '') {
+        $fmsg = "Please fill all required fields.";
     } else {
-        $fmsg = "Failed to update student: " . $update->error;
-    }
 
-    $update->close();
+
+        if ($role === 'admin') {
+            $spec = null;
+        }
+
+        if ($role === 'employee' && $spec === '') {
+            $fmsg = "Employees must select a specialization.";
+        } else {
+
+            $update = $dbc->prepare("
+                UPDATE staff_users
+                SET name = ?,
+                    email = ?,
+                    role = ?,
+                    specialization = ?
+                WHERE staff_id = ?
+            ");
+
+            $update->bind_param(
+                "ssssi",
+                $name,
+                $email,
+                $role,
+                $spec,
+                $id
+            );
+
+            if ($update->execute()) {
+                header("Location: ../../user.php");
+                exit();
+            } else {
+                $fmsg = "Failed to update user: " . $update->error;
+            }
+
+            $update->close();
+        }
+    }
 }
 ?>
 
@@ -79,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <head>
 
-    <title>Enigma | Add Events</title>
+    <title>Enigma | Update User</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -88,52 +98,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
 
-    <link rel="stylesheet" href="home.css">
-    <link href='https://unpkg.com/boxicons@2.0.7/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="../../home.css">
 </head>
 
 <body>
 
-<div class="sidebar">
-    <div class="logo-details">
-        <i class='bx bxl-c-plus-plus'></i>
-        <span class="logo_name">Enigma</span>
-    </div>
-
-    <ul class="nav-links">
-        <li><a href="home.php" class="active"><i class='bx bx-grid-alt'></i><span class="links_name">Dashboard</span></a></li>
-        <li><a href="user.php"><i class='bx bx-box'></i><span class="links_name">Users</span></a></li>
-        <li><a href="events.php"><i class='bx bx-list-ul'></i><span class="links_name">Event list</span></a></li>
-        <li><a href="participants.php"><i class='bx bx-pie-chart-alt-2'></i><span class="links_name">Participants</span></a></li>
-        <li><a href="#"><i class='bx bx-heart'></i><span class="links_name">Feedback</span></a></li>
-        <li><a href="#"><i class='bx bx-cog'></i><span class="links_name">Queries</span></a></li>
-        <li class="log_out"><a href="logout.php"><i class='bx bx-log-out'></i><span class="links_name">Log out</span></a></li>
-    </ul>
-</div>
+<?php include_once('../../templates/sidebar.php'); ?>
 
 <section class="home-section">
-    <nav>
-        <div class="sidebar-button">
-            <i class='bx bx-menu sidebarBtn'></i>
-            <span class="dashboard">Dashboard</span>
-        </div>
-
-        <div class="search-box">
-            <input type="text" placeholder="Search...">
-            <i class='bx bx-search'></i>
-        </div>
-
-        <div class="profile-details">
-            <img src="https://t4.ftcdn.net/jpg/00/97/00/09/360_F_97000908_wwH2goIihwrMoeV9QF3BW6HtpsVFaNVM.jpg" alt="profile">
-
-            <span class="admin_name">
-                <?= htmlspecialchars($_SESSION["Aname"]) ?>
-            </span>
-
-            <i class='bx bx-chevron-down'></i>
-        </div>
-    </nav>
 
     <div class="container">
 
@@ -143,66 +115,82 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
         <?php } ?>
 
-        <h2 style="padding-top: 120px; margin-left: 20px">Update User</h2>
+        <h2 style="padding-top: 120px; margin-left: 0px">
+            Update User
+        </h2>
 
-        <form method="post" style="margin-left: 20px">
+        <form method="post" style="margin-left: 5px">
 
             <div class="form-group">
-                <label>Student Number</label>
-                <input type="text" class="form-control" name="student_number"
-                    value="<?= htmlspecialchars($r['student_number'] ?? '') ?>" required />
+                <label>Name</label>
+                <input type="text"
+                       class="form-control"
+                       name="name"
+                       value="<?= htmlspecialchars($r['name'] ?? '') ?>"
+                       required />
             </div>
 
             <div class="form-group">
-                <label>First Name</label>
-                <input type="text" class="form-control" name="first_name"
-                    value="<?= htmlspecialchars($r['first_name'] ?? '') ?>" required />
+                <label>Email</label>
+                <input type="email"
+                       class="form-control"
+                       name="email"
+                       value="<?= htmlspecialchars($r['email'] ?? '') ?>"
+                       required />
             </div>
 
             <div class="form-group">
-                <label>Last Name</label>
-                <input type="text" class="form-control" name="last_name"
-                    value="<?= htmlspecialchars($r['last_name'] ?? '') ?>" required />
-            </div>
-
-            <div class="form-group">
-                <label>E Mail</label>
-                <input type="email" class="form-control" name="email"
-                    value="<?= htmlspecialchars($r['email'] ?? '') ?>" required />
-            </div>
-
-            <div class="form-group">
-                <label>Year Level</label>
-                <select class="form-control" name="year_level">
-                    <option value="1" <?= ($r['year_level'] == 1 ? 'selected' : '') ?>>1</option>
-                    <option value="2" <?= ($r['year_level'] == 2 ? 'selected' : '') ?>>2</option>
-                    <option value="3" <?= ($r['year_level'] == 3 ? 'selected' : '') ?>>3</option>
-                    <option value="4" <?= ($r['year_level'] == 4 ? 'selected' : '') ?>>4</option>
+                <label>Role</label>
+                <select class="form-control" name="role" id="roleSelect" required>
+                    <option value="admin" <?= ($r['role'] == 'admin') ? 'selected' : '' ?>>
+                        Admin
+                    </option>
+                    <option value="employee" <?= ($r['role'] == 'employee') ? 'selected' : '' ?>>
+                        Employee
+                    </option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Department</label>
-                <select class="form-control" name="course">
-                    <option value="BSINFO" <?= ($r['course'] == 'BSINFO' ? 'selected' : '') ?>>BSINFO</option>
-                    <option value="BSINDU" <?= ($r['course'] == 'BSINDU' ? 'selected' : '') ?>>BSINDU</option>
-                    <option value="BSED" <?= ($r['course'] == 'BSED' ? 'selected' : '') ?>>BSED</option>
-                    <option value="BSOA" <?= ($r['course'] == 'BSOA' ? 'selected' : '') ?>>BSOA</option>
-                    <option value="BSA" <?= ($r['course'] == 'BSA' ? 'selected' : '') ?>>BSA</option>
-                    <option value="BSENTREP" <?= ($r['course'] == 'BSENTREP' ? 'selected' : '') ?>>BSENTREP</option>
-                </select>
-            </div>
+                <label>Specialization</label>
 
-            <div class="form-group">
-                <label>Status</label>
-                <select class="form-control" name="status">
-                    <option value="active" <?= ($r['status'] == 'active' ? 'selected' : '') ?>>Active</option>
-                    <option value="inactive" <?= ($r['status'] == 'inactive' ? 'selected' : '') ?>>Inactive</option>
+                <select class="form-control"
+                        name="specialization"
+                        id="specSelect">
+
+                    <option value="">-- Select Specialization --</option>
+
+                    <option value="registration"
+                        <?= ($r['specialization'] == 'registration') ? 'selected' : '' ?>>
+                        Registration
+                    </option>
+
+                    <option value="qr_scanning"
+                        <?= ($r['specialization'] == 'qr_scanning') ? 'selected' : '' ?>>
+                        QR Scanning
+                    </option>
+
+                    <option value="event_management"
+                        <?= ($r['specialization'] == 'event_management') ? 'selected' : '' ?>>
+                        Event Management
+                    </option>
+
+                    <option value="attendance"
+                        <?= ($r['specialization'] == 'attendance') ? 'selected' : '' ?>>
+                        Attendance
+                    </option>
+
+                    <option value="decoration"
+                        <?= ($r['specialization'] == 'decoration') ? 'selected' : '' ?>>
+                        Decoration
+                    </option>
                 </select>
             </div>
 
             <br><br>
-            <input type="submit" class="btn btn-primary" value="Update Student">
+            <input type="submit"
+                   class="btn btn-primary"
+                   value="Update User">
 
         </form>
     </div>
@@ -210,5 +198,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <?php require_once('../../templates/footer.php') ?>
 
 </section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const roleSelect = document.getElementById('roleSelect');
+    const specSelect = document.getElementById('specSelect');
+
+    function toggleSpec() {
+        if (roleSelect.value === 'admin') {
+            specSelect.value = '';
+            specSelect.disabled = true;
+        } else {
+            specSelect.disabled = false;
+        }
+    }
+
+    toggleSpec();
+    roleSelect.addEventListener('change', toggleSpec);
+});
+</script>
+
 </body>
 </html>
