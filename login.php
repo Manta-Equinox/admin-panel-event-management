@@ -18,7 +18,12 @@ if ($email === '' || $password === '') {
     exit();
 }
 
-$stmt = $dbc->prepare("SELECT staff_id, email, password, role FROM staff_users WHERE email = ? LIMIT 1");
+$stmt = $dbc->prepare("
+    SELECT staff_id, email, password, role 
+    FROM staff_users 
+    WHERE email = ? 
+    LIMIT 1
+");
 
 if (!$stmt) {
     die("Database error: " . $dbc->error);
@@ -32,12 +37,11 @@ if ($result && $result->num_rows === 1) {
 
     $row = $result->fetch_assoc();
 
-
-    if ($password === $row['password']) {
+    if (password_verify($password, $row['password'])) {
 
         $_SESSION['Aname'] = $row['email'];
-        $_SESSION['Aid'] = $row['staff_id'];
-        $_SESSION['role']  = $row['role']; 
+        $_SESSION['Aid']   = $row['staff_id'];
+        $_SESSION['role']  = $row['role'];
 
         header("Location: home.php");
         exit();
