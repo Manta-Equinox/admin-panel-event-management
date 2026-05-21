@@ -69,20 +69,40 @@ require_once __DIR__ . "/connect.php";
         <?php while ($row1 = mysqli_fetch_assoc($exe1)) { ?>
 
         <?php
-            $event_id = $row1['event_id'];
-            $user_id = $_SESSION['user_id'] ?? 0;
+        $event_id = intval($row1['event_id']);
+        $user_id = $_SESSION['Aid'] ?? 0;
+        $role = $_SESSION['role'] ?? '';
 
-            $isAssigned = false;
+        $isAssigned = false;
+        $isRegistered = false;
 
-            if ($user_id && $_SESSION['role'] === 'employee') {
-                $check = mysqli_query($dbc,
-                    "SELECT 1 FROM event_assignments 
-                     WHERE event_id = $event_id 
-                     AND staff_id = $user_id"
-                );
+        if ($user_id && $role === 'employee') {
 
-                $isAssigned = mysqli_num_rows($check) > 0;
-            }
+            $assignQuery = mysqli_query($dbc,
+                "SELECT 1
+                FROM event_assignments
+                WHERE event_id = $event_id
+                AND staff_id = $user_id
+                LIMIT 1"
+            );
+
+            $isAssigned = mysqli_num_rows($assignQuery) > 0;
+
+            $registerQuery = mysqli_query($dbc,
+                "SELECT 1
+                FROM event_participants
+                WHERE event_id = $event_id
+                AND participant_id = $user_id
+                LIMIT 1"
+            );
+
+            $isRegistered = mysqli_num_rows($registerQuery) > 0;
+        }
+
+
+        $isPrivate = strtolower($row1['event_type']) === 'private';
+
+        $canJoin = !$isPrivate || $isAssigned;
         ?>
 
         <tr>
@@ -104,13 +124,35 @@ require_once __DIR__ . "/connect.php";
 
             <td>
                 <?php if ($_SESSION['role'] === 'employee') { ?>
-                    <?php if ($isAssigned) { ?>
-                        <span class="badge bg-success">Assigned</span>
+
+                    <?php if ($isRegistered) { ?>
+                        <span class="badge bg-success">
+                            Registered
+                        </span>
+
+                    <?php } elseif ($isPrivate && $isAssigned) { ?>
+                        <span class="badge bg-warning text-dark">
+                            Invited
+                        </span>
+
+                    <?php } elseif (!$isPrivate) { ?>
+                        <span class="badge bg-primary">
+                            Public Event
+                        </span>
+
                     <?php } else { ?>
-                        <span class="badge bg-secondary">Not Assigned</span>
+                        <span class="badge bg-secondary">
+                            Invite Only
+                        </span>
+
                     <?php } ?>
+
                 <?php } else { ?>
-                    <span class="badge bg-info">Admin View</span>
+
+                    <span class="badge bg-info">
+                        Admin View
+                    </span>
+
                 <?php } ?>
             </td>
 
@@ -118,21 +160,41 @@ require_once __DIR__ . "/connect.php";
 
                 <?php if ($_SESSION['role'] === 'admin') { ?>
 
-                    <a href="./components/event/assign_staff.php?event_id=<?= $row1['event_id'] ?>"
-                       class="btn btn-warning btn-sm">
-                        <i class='bx bx-user-plus'></i>
-                    </a>
-
-                    <a href="./components/event/update.php?id=<?= $row1['event_id'] ?>"
-                       class="btn btn-info btn-sm">
+                    <a href="./components/event/update.php?id=<?= $event_id ?>"
+                    class="btn btn-info btn-sm">
                         <i class='bx bx-edit'></i>
                     </a>
 
-                    <a href="./components/event/delete.php?id=<?= $row1['event_id'] ?>"
-                       class="btn btn-danger btn-sm"
-                       onclick="return confirm('Delete this event?');">
+                    <a href="./components/event/delete.php?id=<?= $event_id ?>"
+                    class="btn btn-danger btn-sm"
+                    onclick="return confirm('Delete this event?');">
                         <i class='bx bx-trash'></i>
                     </a>
+
+                <?php } ?>
+
+                <?php if ($_SESSION['role'] === 'employee') { ?>
+
+                    <?php if ($isRegistered) { ?>
+
+                        <button class="btn btn-success btn-sm" disabled>
+                            Joined
+                        </button>
+
+                    <?php } elseif ($canJoin) { ?>
+
+                        <a href="./components/event/participate.php?event_id=<?= $event_id ?>"
+                        class="btn btn-primary btn-sm">
+                            Participate
+                        </a>
+
+                    <?php } else { ?>
+
+                        <button class="btn btn-secondary btn-sm" disabled>
+                            Invite Only
+                        </button>
+
+                    <?php } ?>
 
                 <?php } ?>
 

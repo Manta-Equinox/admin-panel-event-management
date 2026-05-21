@@ -2,36 +2,30 @@
 session_start();
 require_once __DIR__ . "/../../connect.php";
 
-// ONLY ADMIN CAN ACCESS
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../../events.php");
     exit();
 }
 
-// GET EVENT ID
 $event_id = intval($_GET['event_id'] ?? 0);
 
 if ($event_id <= 0) {
     die("Invalid event ID");
 }
 
-// GET EVENT INFO (optional display)
 $event = mysqli_fetch_assoc(mysqli_query(
     $dbc,
     "SELECT * FROM events WHERE event_id = $event_id"
 ));
 
-// GET ALL EMPLOYEES
 $staffList = mysqli_query($dbc, "
     SELECT * FROM staff_users WHERE role = 'employee'
 ");
 
-// ASSIGN STAFF
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $staff_id = intval($_POST['staff_id']);
 
-    // prevent duplicate assignment
     $check = mysqli_query($dbc, "
         SELECT * FROM event_assignments
         WHERE event_id = $event_id AND staff_id = $staff_id
