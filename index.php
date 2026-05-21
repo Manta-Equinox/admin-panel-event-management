@@ -261,6 +261,25 @@ if (isset($_SESSION["Aname"])) {
         animation: animationLeftRight 4s ease-in-out infinite;
     }
 
+    .public-btn {
+    display: inline-block;
+    padding: 10px 16px;
+    border: 1px solid #5469d4;
+    border-radius: 6px;
+    color: #5469d4;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    background: #fff;
+    }
+
+    .public-btn:hover {
+        background: #5469d4;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(84, 105, 212, 0.25);
+    }
+
     @keyframes animationLeftRight {
         0% {
             transform: translateX(0px);
@@ -358,10 +377,16 @@ if (isset($_SESSION["Aname"])) {
                                     <input type="submit" name="submit" value="Continue">
                                 </div>
                             </form>
+                            <div style="text-align:center; margin-top:15px;">
+                                <div style="font-size:13px; color:#666; margin-bottom:8px;">
+                                    Access without login
+                                </div>
+
+                                <a href="/components/public/public_event.php" class="public-btn">
+                                    View Public Events
+                                </a>
+                            </div>
                         </div>
-                    </div>
-                    <div class="footer-link padding-top--24">
-                        <span>Don't have an account? <a href="#">Sign up</a></span>
                     </div>
                 </div>
             </div>
