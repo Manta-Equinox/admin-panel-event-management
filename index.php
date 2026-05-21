@@ -377,7 +377,8 @@ if (isset($_SESSION["Aname"])) {
                                     <input type="submit" name="submit" value="Continue">
                                 </div>
                             </form>
-                            <div style="text-align:center; margin-top:15px;">
+                           <div style="text-align:center; margin-top:15px;">
+
                                 <div style="font-size:13px; color:#666; margin-bottom:8px;">
                                     Access without login
                                 </div>
@@ -385,6 +386,17 @@ if (isset($_SESSION["Aname"])) {
                                 <a href="/components/public/public_event.php" class="public-btn">
                                     View Public Events
                                 </a>
+
+                                <div style="margin-top:20px;">
+                                    <div style="font-size:13px; color:#666; margin-bottom:8px;">
+                                        No account yet?
+                                    </div>
+
+                                    <a href="participant_signup.php" class="public-btn">
+                                        Sign Up as Participant
+                                    </a>
+                                </div>
+
                             </div>
                         </div>
                     </div>
