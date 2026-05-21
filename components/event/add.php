@@ -13,32 +13,51 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
+$created_by = $_SESSION['Aid'] ?? null;
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $title     = trim($_POST['name'] ?? '');
-    $desc      = trim($_POST['desc'] ?? '');
-    $type      = trim($_POST['type'] ?? '');
-    $date      = trim($_POST['date'] ?? '');
-    $time      = trim($_POST['time'] ?? '');
-    $location  = trim($_POST['location'] ?? '');
+    $title        = trim($_POST['title'] ?? '');
+    $desc         = trim($_POST['description'] ?? '');
+    $type         = trim($_POST['event_type'] ?? 'public');
+    $date         = trim($_POST['event_date'] ?? '');
+    $start_time   = trim($_POST['start_time'] ?? '');
+    $end_time     = trim($_POST['end_time'] ?? '');
+    $location     = trim($_POST['location'] ?? '');
+    $capacity     = trim($_POST['capacity'] ?? 0);
+    $payment_req  = isset($_POST['payment_required']) ? 1 : 0;
+    $price        = trim($_POST['price'] ?? 0.00);
 
-    if ($title === '' || $desc === '' || $type === '' || $date === '' || $time === '' || $location === '') {
+    if (
+        $title === '' ||
+        $desc === '' ||
+        $type === '' ||
+        $date === '' ||
+        $start_time === '' ||
+        $location === ''
+    ) {
         $fmsg = "Please fill all required fields.";
     } else {
 
         $stmt = $dbc->prepare("
-            INSERT INTO events (title, description, event_type, event_date, event_time, location)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO events 
+            (title, description, event_type, event_date, start_time, end_time, location, created_by, payment_required, price, status, capacity)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
         ");
 
         $stmt->bind_param(
-            "ssssss",
+            "sssssssiiii",
             $title,
             $desc,
             $type,
             $date,
-            $time,
-            $location
+            $start_time,
+            $end_time,
+            $location,
+            $created_by,
+            $payment_req,
+            $price,
+            $capacity
         );
 
         if ($stmt->execute()) {
@@ -58,7 +77,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <head>
     <title>Enigma | Add Event</title>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -75,55 +93,44 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <div class="container" style="padding-top: 120px;">
 
-    <div class="d-flex align-items-center mb-3">
-        <h4 class="fw-bold">
-            <i class='bx bx-calendar-plus'></i> Add New Event
-        </h4>
-    </div>
+    <h4 class="fw-bold mb-3">
+        <i class='bx bx-calendar-plus'></i> Add New Event
+    </h4>
 
     <?php if (isset($fmsg)) { ?>
-        <div class="alert alert-danger">
-            <?php echo $fmsg; ?>
-        </div>
+        <div class="alert alert-danger"><?= $fmsg ?></div>
     <?php } ?>
 
     <form method="post">
 
-        <div class="form-group mb-2">
-            <label>Title</label>
-            <input type="text" class="form-control" name="name" required>
+        <input type="text" name="title" class="form-control mb-2" placeholder="Title" required>
+
+        <input type="text" name="description" class="form-control mb-2" placeholder="Description" required>
+
+        <select name="event_type" class="form-control mb-2">
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+        </select>
+
+        <input type="date" name="event_date" class="form-control mb-2" required>
+
+        <input type="time" name="start_time" class="form-control mb-2" required>
+
+        <input type="time" name="end_time" class="form-control mb-2">
+
+        <input type="text" name="location" class="form-control mb-2" placeholder="Location" required>
+
+        <input type="number" name="capacity" class="form-control mb-2" placeholder="Capacity">
+
+        <div class="form-check mb-2">
+            <input type="checkbox" name="payment_required" class="form-check-input">
+            <label class="form-check-label">Payment Required</label>
         </div>
 
-        <div class="form-group mb-2">
-            <label>Description</label>
-            <input type="text" class="form-control" name="desc" required>
-        </div>
-
-        <div class="form-group mb-2">
-            <label>Type</label>
-            <select name="type" class="form-control" required>
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-            </select>
-        </div>
-
-        <div class="form-group mb-2">
-            <label>Date</label>
-            <input type="date" class="form-control" name="date" required>
-        </div>
-
-        <div class="form-group mb-2">
-            <label>Time</label>
-            <input type="time" class="form-control" name="time" required>
-        </div>
-
-        <div class="form-group mb-3">
-            <label>Location</label>
-            <input type="text" class="form-control" name="location" required>
-        </div>
+        <input type="number" step="0.01" name="price" class="form-control mb-3" placeholder="Price">
 
         <button type="submit" class="btn btn-primary">
-            <i class='bx bx-plus'></i> Add Event
+            <i class='bx bx-plus'></i> Create Event
         </button>
 
     </form>

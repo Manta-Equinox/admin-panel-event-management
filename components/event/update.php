@@ -17,7 +17,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("Invalid ID");
 }
 
-$id = intval($_GET['id']);
+$id = (int) $_GET['id'];
 
 $stmt = $dbc->prepare("SELECT * FROM staff_users WHERE staff_id = ?");
 $stmt->bind_param("i", $id);
@@ -29,12 +29,18 @@ if (!$r) {
     die("User not found.");
 }
 
+$specs = [];
+$specQuery = mysqli_query($dbc, "SELECT * FROM specializations");
+while ($s = mysqli_fetch_assoc($specQuery)) {
+    $specs[] = $s;
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $name  = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $role  = trim($_POST['role'] ?? '');
-    $spec  = trim($_POST['specialization'] ?? '');
+    $spec  = $_POST['specialization_id'] ?? null;
 
     if ($name === '' || $email === '' || $role === '') {
         $fmsg = "Please fill all required fields.";
@@ -44,18 +50,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $spec = null;
         }
 
-        if ($role === 'employee' && $spec === '') {
+        if ($role === 'employee' && empty($spec)) {
             $fmsg = "Employees must select a specialization.";
         } else {
 
             $update = $dbc->prepare("
                 UPDATE staff_users
-                SET name = ?, email = ?, role = ?, specialization = ?
+                SET name = ?, email = ?, role = ?, specialization_id = ?
                 WHERE staff_id = ?
             ");
 
             $update->bind_param(
-                "ssssi",
+                "sssii",
                 $name,
                 $email,
                 $role,
@@ -95,74 +101,59 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <section class="home-section">
 
-    <nav>
-        <div class="sidebar-button">
-            <i class='bx bx-menu sidebarBtn'></i>
-            <span class="dashboard">Dashboard</span>
+<div class="container" style="padding-top: 120px;">
+
+    <?php if (isset($fmsg)) { ?>
+        <div class="alert alert-danger"><?= $fmsg ?></div>
+    <?php } ?>
+
+    <h2>Update User</h2>
+
+    <form method="post">
+
+        <div class="mb-2">
+            <label>Name</label>
+            <input type="text" class="form-control" name="name"
+                   value="<?= htmlspecialchars($r['name']) ?>" required>
         </div>
 
-        <div class="search-box">
-            <input type="text" placeholder="Search...">
-            <i class='bx bx-search'></i>
+        <div class="mb-2">
+            <label>Email</label>
+            <input type="email" class="form-control" name="email"
+                   value="<?= htmlspecialchars($r['email']) ?>" required>
         </div>
 
-        <div class="profile-details">
-            <img src="https://t4.ftcdn.net/jpg/00/97/00/09/360_F_97000908_wwH2goIihwrMoeV9QF3BW6HtpsVFaNVM.jpg">
-            <span class="admin_name">
-                <?php echo $_SESSION["Aname"] ?>
-            </span>
-            <i class='bx bx-chevron-down'></i>
+        <div class="mb-2">
+            <label>Role</label>
+            <select class="form-select" name="role" required>
+                <option value="admin" <?= $r['role'] == 'admin' ? 'selected' : '' ?>>Admin</option>
+                <option value="employee" <?= $r['role'] == 'employee' ? 'selected' : '' ?>>Employee</option>
+            </select>
         </div>
-    </nav>
 
-    <div class="container">
+        <div class="mb-2">
+            <label>Specialization</label>
+            <select class="form-select" name="specialization_id">
+                <option value="">-- Select --</option>
 
-        <?php if (isset($fmsg)) { ?>
-            <div class="alert alert-danger">
-                <?php echo $fmsg; ?>
-            </div>
-        <?php } ?>
+                <?php foreach ($specs as $s) { ?>
+                    <option value="<?= $s['id'] ?>"
+                        <?= $r['specialization_id'] == $s['id'] ? 'selected' : '' ?>>
+                        <?= $s['name'] ?>
+                    </option>
+                <?php } ?>
 
-        <h2 style="padding-top: 120px; margin-left: 20px">Update User</h2>
+            </select>
+        </div>
 
-        <form method="post" style="margin-left: 20px">
+        <button type="submit" class="btn btn-primary mt-3">
+            Update User
+        </button>
 
-            <div class="form-group">
-                <label>Name</label>
-                <input type="text" class="form-control" name="name" value="<?= htmlspecialchars($r['name']) ?>" required>
-            </div>
+    </form>
+</div>
 
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" class="form-control" name="email" value="<?= htmlspecialchars($r['email']) ?>" required>
-            </div>
-
-            <div class="form-group">
-                <label>Role</label>
-                <select class="form-select" name="role" required>
-                    <option value="admin" <?= $r['role'] == 'admin' ? 'selected' : '' ?>>Admin</option>
-                    <option value="employee" <?= $r['role'] == 'employee' ? 'selected' : '' ?>>Employee</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Specialization</label>
-                <select class="form-select" name="specialization">
-                    <option value="">-- Select --</option>
-                    <option value="registration" <?= $r['specialization']=='registration'?'selected':'' ?>>Registration</option>
-                    <option value="qr_scanning" <?= $r['specialization']=='qr_scanning'?'selected':'' ?>>QR Scanning</option>
-                    <option value="event_management" <?= $r['specialization']=='event_management'?'selected':'' ?>>Event Management</option>
-                    <option value="attendance" <?= $r['specialization']=='attendance'?'selected':'' ?>>Attendance</option>
-                    <option value="decoration" <?= $r['specialization']=='decoration'?'selected':'' ?>>Decoration</option>
-                </select>
-            </div>
-
-            <input type="submit" class="btn btn-primary mt-3" value="Update User">
-
-        </form>
-    </div>
-
-    <?php require_once('../../templates/footer.php') ?>
+<?php require_once('../../templates/footer.php') ?>
 
 </section>
 

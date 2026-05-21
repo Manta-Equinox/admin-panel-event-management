@@ -6,17 +6,29 @@ if (!isset($_SESSION['Aname'])) {
     exit();
 }
 
-require_once "../../db_connect.php";
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    echo "Access Denied";
+    exit();
+}
 
-$id = $_GET['id'];
+require_once __DIR__ . "/../../connect.php";
 
-$DelSql = "DELETE FROM `events` WHERE eid=$id";
-$res = mysqli_query($conn, $DelSql);
+$id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
-if ($res) {
-    header('location: ../../events.php');
+if ($id <= 0) {
+    die("Invalid ID");
+}
+
+
+$stmt = $dbc->prepare("DELETE FROM events WHERE event_id = ?");
+$stmt->bind_param("i", $id);
+
+if ($stmt->execute()) {
+    header("Location: ../../events.php");
     exit();
 } else {
-    echo "Failed to delete: " . mysqli_error($conn);
+    echo "Failed to delete: " . $stmt->error;
 }
+
+$stmt->close();
 ?>

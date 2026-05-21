@@ -1,11 +1,40 @@
 <?php
 session_start();
+
 if (!isset($_SESSION['Aname'])) {
     header('location: index.php');
     exit();
 }
 
 require_once __DIR__ . "/connect.php";
+
+$role = $_SESSION['role'] ?? '';
+$user_id = (int)($_SESSION['Aid'] ?? 0);
+
+
+$assigned = [];
+$registered = [];
+
+if ($role === 'employee' && $user_id) {
+
+    $res = mysqli_query($dbc, "
+        SELECT event_id 
+        FROM event_assignments
+        WHERE staff_id = $user_id
+    ");
+    while ($r = mysqli_fetch_assoc($res)) {
+        $assigned[] = (int)$r['event_id'];
+    }
+
+    $res = mysqli_query($dbc, "
+        SELECT event_id 
+        FROM event_participants
+        WHERE participant_id = $user_id
+    ");
+    while ($r = mysqli_fetch_assoc($res)) {
+        $registered[] = (int)$r['event_id'];
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -35,177 +64,174 @@ require_once __DIR__ . "/connect.php";
             <i class='bx bx-calendar'></i> Events
         </h4>
 
-        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') { ?>
+        <?php if ($role === 'admin') { ?>
             <a href="./components/event/add.php" class="btn btn-primary">
                 <i class='bx bx-plus'></i> Add New
             </a>
         <?php } ?>
     </div>
 
-    <?php
-    $query1 = "SELECT event_id, title, description, event_type, location, event_date, event_time FROM events";
-    $exe1 = mysqli_query($dbc, $query1);
-    ?>
+<?php
+$query1 = "SELECT 
+                event_id,
+                title,
+                description,
+                event_type,
+                location,
+                event_date,
+                start_time,
+                end_time,
+                status
+            FROM events";
 
-    <div class="table-responsive">
-    <table class="table table-bordered table-hover align-middle">
+$exe1 = mysqli_query($dbc, $query1);
+?>
 
-        <thead class="table-dark">
-            <tr>
-                <th>Event ID</th>
-                <th>Event Name</th>
-                <th>Description</th>
-                <th>Type</th>
-                <th>Location</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
+<div class="table-responsive">
+<table class="table table-bordered table-hover align-middle">
 
-        <tbody>
+<thead class="table-dark">
+<tr>
+    <th>Event ID</th>
+    <th>Event Name</th>
+    <th>Description</th>
+    <th>Type</th>
+    <th>Location</th>
+    <th>Date</th>
+    <th>Time</th>
+    <th>Status</th>
+    <th>Action</th>
+</tr>
+</thead>
 
-        <?php while ($row1 = mysqli_fetch_assoc($exe1)) { ?>
+<tbody>
 
+<?php while ($row1 = mysqli_fetch_assoc($exe1)) { ?>
+
+<?php
+$event_id = (int)$row1['event_id'];
+
+$isAssigned = in_array($event_id, $assigned);
+$isRegistered = in_array($event_id, $registered);
+
+$isPrivate = strtolower($row1['event_type']) === 'private';
+$isActive  = ($row1['status'] === 'approved');
+
+$canJoin = $isActive && (!$isPrivate || $isAssigned);
+?>
+
+<tr>
+
+    <td><?= $event_id ?></td>
+    <td><?= $row1['title'] ?></td>
+    <td><?= $row1['description'] ?></td>
+
+    <td>
+        <span class="badge bg-primary">
+            <?= ucfirst($row1['event_type']) ?>
+        </span>
+    </td>
+
+    <td><?= $row1['location'] ?></td>
+
+    <td><?= $row1['event_date'] ?></td>
+
+    <td>
         <?php
-        $event_id = intval($row1['event_id']);
-        $user_id = $_SESSION['Aid'] ?? 0;
-        $role = $_SESSION['role'] ?? '';
+        $start = !empty($row1['start_time']) ? date("h:i A", strtotime($row1['start_time'])) : null;
+        $end   = !empty($row1['end_time']) ? date("h:i A", strtotime($row1['end_time'])) : null;
 
-        $isAssigned = false;
-        $isRegistered = false;
-
-        if ($user_id && $role === 'employee') {
-
-            $assignQuery = mysqli_query($dbc,
-                "SELECT 1
-                FROM event_assignments
-                WHERE event_id = $event_id
-                AND staff_id = $user_id
-                LIMIT 1"
-            );
-
-            $isAssigned = mysqli_num_rows($assignQuery) > 0;
-
-            $registerQuery = mysqli_query($dbc,
-                "SELECT 1
-                FROM event_participants
-                WHERE event_id = $event_id
-                AND participant_id = $user_id
-                LIMIT 1"
-            );
-
-            $isRegistered = mysqli_num_rows($registerQuery) > 0;
+        if ($start && $end) {
+            echo "$start - $end";
+        } elseif ($start) {
+            echo $start;
+        } else {
+            echo "<span class='text-muted'>Not set</span>";
         }
-
-
-        $isPrivate = strtolower($row1['event_type']) === 'private';
-
-        $canJoin = !$isPrivate || $isAssigned;
         ?>
+    </td>
 
-        <tr>
-            <td><?= $row1['event_id'] ?></td>
-            <td><?= $row1['title'] ?></td>
-            <td><?= $row1['description'] ?></td>
+    <td>
+        <?php if ($role === 'employee') { ?>
 
-            <td>
-                <span class="badge bg-primary">
-                    <?= ucfirst($row1['event_type']) ?>
-                </span>
-            </td>
+            <?php if ($row1['status'] === 'cancelled') { ?>
+                <span class="badge bg-danger">Cancelled</span>
 
-            <td><?= $row1['location'] ?></td>
+            <?php } elseif ($isRegistered) { ?>
+                <span class="badge bg-success">Registered</span>
 
-            <td><?= $row1['event_date'] ?></td>
+            <?php } elseif (!$isActive) { ?>
+                <span class="badge bg-warning text-dark">Not Available</span>
 
-            <td><?= date("h:i A", strtotime($row1['event_time'])) ?></td>
+            <?php } elseif ($isPrivate && $isAssigned) { ?>
+                <span class="badge bg-warning text-dark">Invited</span>
 
-            <td>
-                <?php if ($_SESSION['role'] === 'employee') { ?>
+            <?php } elseif (!$isPrivate) { ?>
+                <span class="badge bg-primary">Public Event</span>
 
-                    <?php if ($isRegistered) { ?>
-                        <span class="badge bg-success">
-                            Registered
-                        </span>
+            <?php } else { ?>
+                <span class="badge bg-secondary">Invite Only</span>
+            <?php } ?>
 
-                    <?php } elseif ($isPrivate && $isAssigned) { ?>
-                        <span class="badge bg-warning text-dark">
-                            Invited
-                        </span>
+        <?php } else { ?>
 
-                    <?php } elseif (!$isPrivate) { ?>
-                        <span class="badge bg-primary">
-                            Public Event
-                        </span>
+            <?php
+            $status = $row1['status'];
 
-                    <?php } else { ?>
-                        <span class="badge bg-secondary">
-                            Invite Only
-                        </span>
+            if ($status === 'approved') {
+                echo '<span class="badge bg-success">Approved</span>';
+            } elseif ($status === 'pending') {
+                echo '<span class="badge bg-warning text-dark">Pending</span>';
+            } elseif ($status === 'cancelled') {
+                echo '<span class="badge bg-danger">Cancelled</span>';
+            }
+            ?>
 
-                    <?php } ?>
+        <?php } ?>
+    </td>
 
-                <?php } else { ?>
+    <td class="text-nowrap">
 
-                    <span class="badge bg-info">
-                        Admin View
-                    </span>
+        <?php if ($role === 'admin') { ?>
+            <a href="./components/event/update.php?id=<?= $event_id ?>" class="btn btn-info btn-sm">
+                <i class='bx bx-edit'></i>
+            </a>
 
-                <?php } ?>
-            </td>
+            <a href="./components/event/delete.php?id=<?= $event_id ?>"
+               class="btn btn-danger btn-sm"
+               onclick="return confirm('Delete this event?');">
+                <i class='bx bx-trash'></i>
+            </a>
+        <?php } ?>
 
-            <td class="text-nowrap">
+        <?php if ($role === 'employee') { ?>
 
-                <?php if ($_SESSION['role'] === 'admin') { ?>
+            <?php if ($isRegistered) { ?>
+                <button class="btn btn-success btn-sm" disabled>Joined</button>
 
-                    <a href="./components/event/update.php?id=<?= $event_id ?>"
-                    class="btn btn-info btn-sm">
-                        <i class='bx bx-edit'></i>
-                    </a>
+            <?php } elseif ($canJoin) { ?>
+                <a href="./components/event/participate.php?event_id=<?= $event_id ?>"
+                   class="btn btn-primary btn-sm">
+                    Participate
+                </a>
 
-                    <a href="./components/event/delete.php?id=<?= $event_id ?>"
-                    class="btn btn-danger btn-sm"
-                    onclick="return confirm('Delete this event?');">
-                        <i class='bx bx-trash'></i>
-                    </a>
-
-                <?php } ?>
-
-                <?php if ($_SESSION['role'] === 'employee') { ?>
-
-                    <?php if ($isRegistered) { ?>
-
-                        <button class="btn btn-success btn-sm" disabled>
-                            Joined
-                        </button>
-
-                    <?php } elseif ($canJoin) { ?>
-
-                        <a href="./components/event/participate.php?event_id=<?= $event_id ?>"
-                        class="btn btn-primary btn-sm">
-                            Participate
-                        </a>
-
-                    <?php } else { ?>
-
-                        <button class="btn btn-secondary btn-sm" disabled>
-                            Invite Only
-                        </button>
-
-                    <?php } ?>
-
-                <?php } ?>
-
-            </td>
-        </tr>
+            <?php } else { ?>
+                <button class="btn btn-secondary btn-sm" disabled>
+                    Invite Only
+                </button>
+            <?php } ?>
 
         <?php } ?>
 
-        </tbody>
-    </table>
-    </div>
+    </td>
+
+</tr>
+
+<?php } ?>
+
+</tbody>
+</table>
+</div>
 
 </div>
 
