@@ -19,67 +19,103 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $id = intval($_GET['id']);
 
-if (!isset($dbc)) {
-    die("Database connection failed.");
-}
-
+// fetch user
 $stmt = $dbc->prepare("SELECT * FROM staff_users WHERE staff_id = ?");
 $stmt->bind_param("i", $id);
 $stmt->execute();
 $result = $stmt->get_result();
-
 $r = $result->fetch_assoc();
 
 if (!$r) {
     die("User not found.");
 }
+
+// fetch specializations
+$specResult = $dbc->query("SELECT * FROM specializations");
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $name  = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $role  = trim($_POST['role'] ?? '');
-    $spec  = trim($_POST['specialization'] ?? '');
+    $spec_id = $_POST['specialization_id'] ?? '';
+    $password = trim($_POST['password'] ?? '');
 
     if ($name === '' || $email === '' || $role === '') {
         $fmsg = "Please fill all required fields.";
     } else {
 
+        // check duplicate email
+        $check = $dbc->prepare("SELECT staff_id FROM staff_users WHERE email = ? AND staff_id != ?");
+        $check->bind_param("si", $email, $id);
+        $check->execute();
+        $check->store_result();
 
-        if ($role === 'admin') {
-            $spec = null;
-        }
-
-        if ($role === 'employee' && $spec === '') {
-            $fmsg = "Employees must select a specialization.";
+        if ($check->num_rows > 0) {
+            $fmsg = "Email already exists.";
         } else {
 
-            $update = $dbc->prepare("
-                UPDATE staff_users
-                SET name = ?,
-                    email = ?,
-                    role = ?,
-                    specialization = ?
-                WHERE staff_id = ?
-            ");
-
-            $update->bind_param(
-                "ssssi",
-                $name,
-                $email,
-                $role,
-                $spec,
-                $id
-            );
-
-            if ($update->execute()) {
-                header("Location: ../../user.php");
-                exit();
-            } else {
-                $fmsg = "Failed to update user: " . $update->error;
+            // role rules
+            if ($role === 'admin') {
+                $spec_id = null;
             }
 
-            $update->close();
+            if ($role === 'employee' && $spec_id === '') {
+                $fmsg = "Employees must select a specialization.";
+            } else {
+
+                // update WITH password
+                if ($password !== '') {
+
+                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+                    $update = $dbc->prepare("
+                        UPDATE staff_users
+                        SET name = ?, email = ?, role = ?, specialization_id = ?, password = ?
+                        WHERE staff_id = ?
+                    ");
+
+                    $update->bind_param(
+                        "sssssi",
+                        $name,
+                        $email,
+                        $role,
+                        $spec_id,
+                        $hashedPassword,
+                        $id
+                    );
+
+                } else {
+
+                    // update WITHOUT password
+                    $update = $dbc->prepare("
+                        UPDATE staff_users
+                        SET name = ?, email = ?, role = ?, specialization_id = ?
+                        WHERE staff_id = ?
+                    ");
+
+                    $update->bind_param(
+                        "ssssi",
+                        $name,
+                        $email,
+                        $role,
+                        $spec_id,
+                        $id
+                    );
+                }
+
+                if ($update->execute()) {
+                    header("Location: ../../user.php");
+                    exit();
+                } else {
+                    $fmsg = "Failed to update user: " . $update->error;
+                }
+
+                $update->close();
+            }
         }
+
+        $check->close();
     }
 }
 ?>
@@ -88,7 +124,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <html lang="en">
 
 <head>
-
     <title>Enigma | Update User</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -104,95 +139,66 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <section class="home-section">
 
-    <div class="container">
+<div class="container" style="padding-top: 120px;">
 
-        <?php if (isset($fmsg)) { ?>
-            <div class="alert alert-danger">
-                <?= $fmsg ?>
-            </div>
-        <?php } ?>
+    <h4 class="fw-bold mb-3">Update User</h4>
 
-        <h2 style="padding-top: 120px; margin-left: 0px">
+    <?php if (isset($fmsg)) { ?>
+        <div class="alert alert-danger">
+            <?= $fmsg ?>
+        </div>
+    <?php } ?>
+
+    <form method="post">
+
+        <div class="form-group mb-2">
+            <label>Name</label>
+            <input type="text" class="form-control" name="name"
+                   value="<?= htmlspecialchars($r['name']) ?>" required>
+        </div>
+
+        <div class="form-group mb-2">
+            <label>Email</label>
+            <input type="email" class="form-control" name="email"
+                   value="<?= htmlspecialchars($r['email']) ?>" required>
+        </div>
+
+        <div class="form-group mb-2">
+            <label>Role</label>
+            <select class="form-control" name="role" id="roleSelect" required>
+                <option value="admin" <?= $r['role']=='admin'?'selected':'' ?>>Admin</option>
+                <option value="employee" <?= $r['role']=='employee'?'selected':'' ?>>Employee</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-2">
+            <label>Specialization</label>
+            <select class="form-control" name="specialization_id" id="specSelect">
+
+                <option value="">-- Select Specialization --</option>
+
+                <?php while ($s = $specResult->fetch_assoc()) { ?>
+                    <option value="<?= $s['id'] ?>"
+                        <?= ($r['specialization_id'] == $s['id']) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($s['name']) ?>
+                    </option>
+                <?php } ?>
+
+            </select>
+        </div>
+
+        <div class="form-group mb-3">
+            <label>New Password (optional)</label>
+            <input type="password" class="form-control" name="password">
+        </div>
+
+        <button type="submit" class="btn btn-primary">
             Update User
-        </h2>
+        </button>
 
-        <form method="post" style="margin-left: 5px">
+    </form>
 
-            <div class="form-group">
-                <label>Name</label>
-                <input type="text"
-                       class="form-control"
-                       name="name"
-                       value="<?= htmlspecialchars($r['name'] ?? '') ?>"
-                       required />
-            </div>
-
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email"
-                       class="form-control"
-                       name="email"
-                       value="<?= htmlspecialchars($r['email'] ?? '') ?>"
-                       required />
-            </div>
-
-            <div class="form-group">
-                <label>Role</label>
-                <select class="form-control" name="role" id="roleSelect" required>
-                    <option value="admin" <?= ($r['role'] == 'admin') ? 'selected' : '' ?>>
-                        Admin
-                    </option>
-                    <option value="employee" <?= ($r['role'] == 'employee') ? 'selected' : '' ?>>
-                        Employee
-                    </option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Specialization</label>
-
-                <select class="form-control"
-                        name="specialization"
-                        id="specSelect">
-
-                    <option value="">-- Select Specialization --</option>
-
-                    <option value="registration"
-                        <?= ($r['specialization'] == 'registration') ? 'selected' : '' ?>>
-                        Registration
-                    </option>
-
-                    <option value="qr_scanning"
-                        <?= ($r['specialization'] == 'qr_scanning') ? 'selected' : '' ?>>
-                        QR Scanning
-                    </option>
-
-                    <option value="event_management"
-                        <?= ($r['specialization'] == 'event_management') ? 'selected' : '' ?>>
-                        Event Management
-                    </option>
-
-                    <option value="attendance"
-                        <?= ($r['specialization'] == 'attendance') ? 'selected' : '' ?>>
-                        Attendance
-                    </option>
-
-                    <option value="decoration"
-                        <?= ($r['specialization'] == 'decoration') ? 'selected' : '' ?>>
-                        Decoration
-                    </option>
-                </select>
-            </div>
-
-            <br><br>
-            <input type="submit"
-                   class="btn btn-primary"
-                   value="Update User">
-
-        </form>
-    </div>
-
-    <?php require_once('../../templates/footer.php') ?>
+</div>
 
 </section>
 
@@ -211,8 +217,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    toggleSpec();
     roleSelect.addEventListener('change', toggleSpec);
+    toggleSpec();
 });
 </script>
 

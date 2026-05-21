@@ -18,6 +18,11 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 }
 
 $id = intval($_GET['id']);
+
+if (isset($_SESSION['staff_id']) && $_SESSION['staff_id'] == $id) {
+    die("You cannot delete your own account.");
+}
+
 $stmt = $dbc->prepare("DELETE FROM staff_users WHERE staff_id = ?");
 
 if (!$stmt) {

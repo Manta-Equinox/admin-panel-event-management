@@ -41,11 +41,9 @@ require_once __DIR__ . "/connect.php";
             <i class='bx bx-user'></i> Users
         </h4>
 
-        <?php if ($_SESSION['role'] === 'admin') : ?>
-            <a href="./components/user/add.php" class="btn btn-primary">
-                <i class='bx bx-user-plus'></i> Add user
-            </a>
-        <?php endif; ?>
+        <a href="./components/user/add.php" class="btn btn-primary">
+            <i class='bx bx-user-plus'></i> Add user
+        </a>
     </div>
 
     <div class="table-responsive">
@@ -66,7 +64,15 @@ require_once __DIR__ . "/connect.php";
             <tbody>
 
             <?php
-            $query = "SELECT * FROM staff_users";
+            // JOIN specialization table (IMPORTANT FIX)
+            $query = "
+                SELECT staff_users.*,
+                       specializations.name AS spec_name
+                FROM staff_users
+                LEFT JOIN specializations
+                ON staff_users.specialization_id = specializations.id
+            ";
+
             $result = mysqli_query($dbc, $query);
 
             if (!$result) {
@@ -77,11 +83,12 @@ require_once __DIR__ . "/connect.php";
 
                 while ($row = mysqli_fetch_assoc($result)) {
 
-                    $id = $row['staff_id'];
-                    $name = $row['name'];
-                    $email = $row['email'];
-                    $role = $row['role'];
-                    $spec = $row['specialization'] ?? '-';
+                    $id    = $row['staff_id'];
+                    $name  = htmlspecialchars($row['name']);
+                    $email = htmlspecialchars($row['email']);
+                    $role  = htmlspecialchars($row['role']);
+
+                    $spec = !empty($row['spec_name']) ? htmlspecialchars($row['spec_name']) : '-';
 
                     echo "
                     <tr>

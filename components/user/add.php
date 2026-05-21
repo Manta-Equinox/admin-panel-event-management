@@ -13,41 +13,61 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
+// fetch specializations from DB
+$specResult = $dbc->query("SELECT * FROM specializations");
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $name     = trim($_POST['name'] ?? '');
     $email    = trim($_POST['email'] ?? '');
     $password = trim($_POST['password'] ?? '');
     $role     = trim($_POST['role'] ?? '');
-    $spec     = trim($_POST['specialization'] ?? '');
+    $spec_id  = trim($_POST['specialization_id'] ?? '');
 
     if ($name === '' || $email === '' || $password === '' || $role === '') {
         $fmsg = "Please fill all required fields.";
     } else {
 
+        // role rules
         if ($role === 'admin') {
-            $spec = null;
+            $spec_id = null;
         }
 
-        if ($role === 'employee' && $spec === '') {
+        if ($role === 'employee' && $spec_id === '') {
             $fmsg = "Employees must select a specialization.";
         } else {
 
-            $stmt = $dbc->prepare("
-                INSERT INTO staff_users (name, email, password, role, specialization)
-                VALUES (?, ?, ?, ?, ?)
-            ");
+            // check duplicate email
+            $check = $dbc->prepare("SELECT staff_id FROM staff_users WHERE email = ?");
+            $check->bind_param("s", $email);
+            $check->execute();
+            $check->store_result();
 
-            $stmt->bind_param("sssss", $name, $email, $password, $role, $spec);
-
-            if ($stmt->execute()) {
-                header("Location: ../../user.php");
-                exit();
+            if ($check->num_rows > 0) {
+                $fmsg = "Email already exists.";
             } else {
-                $fmsg = "Insert failed: " . $stmt->error;
+
+                // hash password
+                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+                $stmt = $dbc->prepare("
+                    INSERT INTO staff_users (name, email, password, role, specialization_id)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
+
+                $stmt->bind_param("ssssi", $name, $email, $hashedPassword, $role, $spec_id);
+
+                if ($stmt->execute()) {
+                    header("Location: ../../user.php");
+                    exit();
+                } else {
+                    $fmsg = "Insert failed: " . $stmt->error;
+                }
+
+                $stmt->close();
             }
 
-            $stmt->close();
+            $check->close();
         }
     }
 }
@@ -75,11 +95,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <div class="container" style="padding-top: 120px;">
 
-    <div class="d-flex align-items-center mb-3">
-        <h4 class="fw-bold">
-            <i class='bx bx-user-plus'></i> Add New User
-        </h4>
-    </div>
+    <h4 class="fw-bold mb-3">
+        <i class='bx bx-user-plus'></i> Add New User
+    </h4>
 
     <?php if (isset($fmsg)) { ?>
         <div class="alert alert-danger">
@@ -91,22 +109,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <div class="form-group mb-2">
             <label>Name</label>
-            <input type="text" class="form-control" name="name" required />
+            <input type="text" class="form-control" name="name" required>
         </div>
 
         <div class="form-group mb-2">
             <label>Email</label>
-            <input type="email" class="form-control" name="email" required />
+            <input type="email" class="form-control" name="email" required>
         </div>
 
         <div class="form-group mb-2">
             <label>Password</label>
-            <input type="password" class="form-control" name="password" required />
+            <input type="password" class="form-control" name="password" required>
         </div>
 
         <div class="form-group mb-2">
             <label>Role</label>
-            <select name="role" class="form-control" required>
+            <select name="role" class="form-control" id="roleSelect" required>
                 <option value="">-- Select Role --</option>
                 <option value="admin">Admin</option>
                 <option value="employee">Employee</option>
@@ -115,13 +133,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <div class="form-group mb-3">
             <label>Specialization</label>
-            <select name="specialization" class="form-control" id="specSelect">
+            <select name="specialization_id" class="form-control" id="specSelect">
                 <option value="">-- Select Specialization --</option>
-                <option value="registration">Registration</option>
-                <option value="qr_scanning">QR Scanning</option>
-                <option value="event_management">Event Management</option>
-                <option value="attendance">Attendance</option>
-                <option value="decoration">Decoration</option>
+
+                <?php while ($row = $specResult->fetch_assoc()) { ?>
+                    <option value="<?= $row['id'] ?>">
+                        <?= htmlspecialchars($row['name']) ?>
+                    </option>
+                <?php } ?>
+
             </select>
         </div>
 
@@ -135,12 +155,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </section>
 
-<?php include_once('../../templates/footer.php'); ?>
-
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
-    const roleSelect = document.querySelector('select[name="role"]');
+    const roleSelect = document.getElementById('roleSelect');
     const specSelect = document.getElementById('specSelect');
 
     function toggleSpec() {
