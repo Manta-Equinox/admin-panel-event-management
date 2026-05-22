@@ -358,7 +358,7 @@ if (isset($_SESSION["Aname"])) {
                 <div class="formbg-outer">
                     <div class="formbg">
                         <div class="formbg-inner padding-horizontal--48">
-                            <span class="padding-bottom--15">Login to Admin Desk</span>
+                            <span class="padding-bottom--15">Login</span>
                             <form id="stripe-login" method="POST" action="login.php">
                                 <div class="field padding-bottom--24">
                                     <label for="email">E mail</label>
@@ -376,16 +376,12 @@ if (isset($_SESSION["Aname"])) {
                                 <div class="field padding-bottom--24">
                                     <input type="submit" name="submit" value="Continue">
                                 </div>
-                            </form>
-                            <div style="text-align:center; margin-top:15px;">
-                                <div style="font-size:13px; color:#666; margin-bottom:8px;">
-                                    Access without login
+                                <div style="text-align:center; margin-top:10px;">
+                                    <a href="signup.php" class="public-btn">
+                                        Create Participant Account
+                                    </a>
                                 </div>
-
-                                <a href="/components/public/public_event.php" class="public-btn">
-                                    View Public Events
-                                </a>
-                            </div>
+                            </form>
                         </div>
                     </div>
                 </div>
