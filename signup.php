@@ -15,8 +15,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $message = "Passwords do not match.";
     } else {
 
-     
-        $check = mysqli_prepare($dbc, "SELECT staff_id FROM staff_users WHERE email = ?");
+        $check = mysqli_prepare($dbc, "SELECT participant_id FROM participants WHERE email = ?");
         mysqli_stmt_bind_param($check, "s", $email);
         mysqli_stmt_execute($check);
         mysqli_stmt_store_result($check);
@@ -26,9 +25,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } else {
 
             $hashed = password_hash($password, PASSWORD_DEFAULT);
+
             $stmt = mysqli_prepare($dbc, "
-                INSERT INTO staff_users (name, email, password, role, specialization_id)
-                VALUES (?, ?, ?, 'participant', NULL)
+                INSERT INTO participants (name, email, password)
+                VALUES (?, ?, ?)
             ");
 
             mysqli_stmt_bind_param($stmt, "sss", $name, $email, $hashed);
@@ -43,6 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">

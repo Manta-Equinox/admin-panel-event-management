@@ -376,9 +376,9 @@ if (isset($_SESSION["Aname"])) {
                                 <div class="field padding-bottom--24">
                                     <input type="submit" name="submit" value="Continue">
                                 </div>
-                                <div style="text-align:center; margin-top:10px;">
-                                    <a href="signup.php" class="public-btn">
-                                        Create Participant Account
+                               <div style="text-align:center; margin-top:10px;">
+                                    <a href="participants_login.php" style="color:#5469d4; font-weight:600; text-decoration:none;">
+                                        I'm a participant
                                     </a>
                                 </div>
                             </form>

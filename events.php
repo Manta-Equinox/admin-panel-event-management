@@ -10,32 +10,6 @@ require_once __DIR__ . "/connect.php";
 
 $role = $_SESSION['role'] ?? '';
 $user_id = (int)($_SESSION['Aid'] ?? 0);
-
-$assigned = [];
-$registered = [];
-
-if ($role === 'employee' && $user_id) {
-
-    $res = mysqli_query($dbc, "
-        SELECT event_id 
-        FROM event_assignments
-        WHERE staff_id = $user_id
-    ");
-
-    while ($r = mysqli_fetch_assoc($res)) {
-        $assigned[] = (int)$r['event_id'];
-    }
-
-    $res = mysqli_query($dbc, "
-        SELECT event_id 
-        FROM event_participants
-        WHERE participant_id = $user_id
-    ");
-
-    while ($r = mysqli_fetch_assoc($res)) {
-        $registered[] = (int)$r['event_id'];
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -72,7 +46,7 @@ if ($role === 'employee' && $user_id) {
     </div>
 
 <?php
-$query1 = "SELECT 
+$query = "SELECT 
             event_id,
             title,
             description,
@@ -82,9 +56,10 @@ $query1 = "SELECT
             start_time,
             end_time,
             status
-          FROM events";
+          FROM events
+          ORDER BY event_id DESC";
 
-$exe1 = mysqli_query($dbc, $query1);
+$exe = mysqli_query($dbc, $query);
 ?>
 
 <div class="table-responsive">
@@ -106,40 +81,33 @@ $exe1 = mysqli_query($dbc, $query1);
 
 <tbody>
 
-<?php while ($row1 = mysqli_fetch_assoc($exe1)) { ?>
+<?php while ($row = mysqli_fetch_assoc($exe)) { ?>
 
 <?php
-$event_id = (int)$row1['event_id'];
-
-$isAssigned = in_array($event_id, $assigned);
-$isRegistered = in_array($event_id, $registered);
-
-$isPrivate = strtolower($row1['event_type']) === 'private';
-$isActive  = ($row1['status'] === 'approved');
-
-$canJoin = $isActive && (!$isPrivate || $isAssigned);
+$event_id = (int)$row['event_id'];
+$isApproved = ($row['status'] === 'approved');
 ?>
 
 <tr>
 
     <td><?= $event_id ?></td>
-    <td><?= $row1['title'] ?></td>
-    <td><?= $row1['description'] ?></td>
+    <td><?= htmlspecialchars($row['title']) ?></td>
+    <td><?= htmlspecialchars($row['description']) ?></td>
 
     <td>
         <span class="badge bg-primary">
-            <?= ucfirst($row1['event_type']) ?>
+            <?= ucfirst($row['event_type']) ?>
         </span>
     </td>
 
-    <td><?= $row1['location'] ?></td>
+    <td><?= htmlspecialchars($row['location']) ?></td>
 
-    <td><?= $row1['event_date'] ?></td>
+    <td><?= $row['event_date'] ?></td>
 
     <td>
         <?php
-        $start = !empty($row1['start_time']) ? date("h:i A", strtotime($row1['start_time'])) : null;
-        $end   = !empty($row1['end_time']) ? date("h:i A", strtotime($row1['end_time'])) : null;
+        $start = !empty($row['start_time']) ? date("h:i A", strtotime($row['start_time'])) : null;
+        $end   = !empty($row['end_time']) ? date("h:i A", strtotime($row['end_time'])) : null;
 
         if ($start && $end) {
             echo "$start - $end";
@@ -153,11 +121,11 @@ $canJoin = $isActive && (!$isPrivate || $isAssigned);
 
     <td>
         <?php
-        if ($row1['status'] === 'approved') {
+        if ($row['status'] === 'approved') {
             echo '<span class="badge bg-success">Approved</span>';
-        } elseif ($row1['status'] === 'pending') {
+        } elseif ($row['status'] === 'pending') {
             echo '<span class="badge bg-warning text-dark">Pending</span>';
-        } elseif ($row1['status'] === 'cancelled') {
+        } elseif ($row['status'] === 'cancelled') {
             echo '<span class="badge bg-danger">Cancelled</span>';
         }
         ?>
@@ -177,28 +145,14 @@ $canJoin = $isActive && (!$isPrivate || $isAssigned);
                 <i class='bx bx-trash'></i>
             </a>
 
-            <a href="./components/event/assign_staff.php?id=<?= $event_id ?>"
-               class="btn btn-warning btn-sm">
-                <i class='bx bx-user-plus'></i>
-            </a>
-
         <?php } ?>
 
-        <?php if ($role === 'employee') { ?>
+        <?php if ($role === 'participant') { ?>
 
-            <?php if ($isRegistered) { ?>
-                <button class="btn btn-success btn-sm" disabled>Joined</button>
-
-            <?php } elseif ($canJoin) { ?>
-                <a href="./components/event/participate.php?event_id=<?= $event_id ?>"
-                   class="btn btn-primary btn-sm">
-                    Participate
-                </a>
-
+            <?php if ($isApproved) { ?>
+                <span class="text-success fw-bold">Open to Participants</span>
             <?php } else { ?>
-                <button class="btn btn-secondary btn-sm" disabled>
-                    Invite Only
-                </button>
+                <span class="text-muted">Not Available</span>
             <?php } ?>
 
         <?php } ?>
