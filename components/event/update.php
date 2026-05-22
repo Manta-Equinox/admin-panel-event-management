@@ -1,6 +1,5 @@
 <?php
 session_start();
-
 require_once __DIR__ . "/../../connect.php";
 
 if (!isset($_SESSION['Aname'])) {
@@ -19,65 +18,72 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $id = (int) $_GET['id'];
 
-$stmt = $dbc->prepare("SELECT * FROM staff_users WHERE staff_id = ?");
+/* =========================
+   FETCH EVENT
+========================= */
+$stmt = $dbc->prepare("SELECT * FROM events WHERE event_id = ?");
 $stmt->bind_param("i", $id);
 $stmt->execute();
 $result = $stmt->get_result();
-$r = $result->fetch_assoc();
+$event = $result->fetch_assoc();
 
-if (!$r) {
-    die("User not found.");
+if (!$event) {
+    die("Event not found.");
 }
 
-$specs = [];
-$specQuery = mysqli_query($dbc, "SELECT * FROM specializations");
-while ($s = mysqli_fetch_assoc($specQuery)) {
-    $specs[] = $s;
-}
-
+/* =========================
+   UPDATE EVENT
+========================= */
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $name  = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $role  = trim($_POST['role'] ?? '');
-    $spec  = $_POST['specialization_id'] ?? null;
+    $title       = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $date        = $_POST['event_date'] ?? null;
+    $start_time  = $_POST['start_time'] ?? null;
+    $end_time    = $_POST['end_time'] ?? null;
+    $location    = trim($_POST['location'] ?? '');
+    $capacity    = $_POST['capacity'] ?? null;
+    $status      = $_POST['status'] ?? 'pending';
+    $type        = $_POST['event_type'] ?? 'public';
+    $price       = $_POST['price'] ?? 0;
+    $payment     = isset($_POST['payment_required']) ? 1 : 0;
 
-    if ($name === '' || $email === '' || $role === '') {
-        $fmsg = "Please fill all required fields.";
+    if ($title === '') {
+        $fmsg = "Title is required.";
     } else {
 
-        if ($role === 'admin') {
-            $spec = null;
-        }
+        $update = $dbc->prepare("
+            UPDATE events
+            SET title = ?, description = ?, event_date = ?, start_time = ?,
+                end_time = ?, location = ?, capacity = ?, status = ?,
+                event_type = ?, price = ?, payment_required = ?
+            WHERE event_id = ?
+        ");
 
-        if ($role === 'employee' && empty($spec)) {
-            $fmsg = "Employees must select a specialization.";
+        $update->bind_param(
+            "ssssssissdii",
+            $title,
+            $description,
+            $date,
+            $start_time,
+            $end_time,
+            $location,
+            $capacity,
+            $status,
+            $type,
+            $price,
+            $payment,
+            $id
+        );
+
+        if ($update->execute()) {
+            header("Location: ../../events.php");
+            exit();
         } else {
-
-            $update = $dbc->prepare("
-                UPDATE staff_users
-                SET name = ?, email = ?, role = ?, specialization_id = ?
-                WHERE staff_id = ?
-            ");
-
-            $update->bind_param(
-                "sssii",
-                $name,
-                $email,
-                $role,
-                $spec,
-                $id
-            );
-
-            if ($update->execute()) {
-                header("Location: ../../user.php");
-                exit();
-            } else {
-                $fmsg = "Failed to update user: " . $update->error;
-            }
-
-            $update->close();
+            $fmsg = "Failed to update event: " . $update->error;
         }
+
+        $update->close();
     }
 }
 ?>
@@ -111,46 +117,81 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <form method="post">
 
-        <div class="mb-2">
-            <label>Name</label>
-            <input type="text" class="form-control" name="name"
-                   value="<?= htmlspecialchars($r['name']) ?>" required>
-        </div>
+    <div class="mb-2">
+        <label>Title</label>
+        <input type="text" class="form-control" name="title"
+               value="<?= htmlspecialchars($event['title']) ?>" required>
+    </div>
 
-        <div class="mb-2">
-            <label>Email</label>
-            <input type="email" class="form-control" name="email"
-                   value="<?= htmlspecialchars($r['email']) ?>" required>
-        </div>
+    <div class="mb-2">
+        <label>Description</label>
+        <textarea class="form-control" name="description"><?= htmlspecialchars($event['description']) ?></textarea>
+    </div>
 
-        <div class="mb-2">
-            <label>Role</label>
-            <select class="form-select" name="role" required>
-                <option value="admin" <?= $r['role'] == 'admin' ? 'selected' : '' ?>>Admin</option>
-                <option value="employee" <?= $r['role'] == 'employee' ? 'selected' : '' ?>>Employee</option>
-            </select>
-        </div>
+    <div class="mb-2">
+        <label>Event Date</label>
+        <input type="date" class="form-control" name="event_date"
+               value="<?= $event['event_date'] ?>">
+    </div>
 
-        <div class="mb-2">
-            <label>Specialization</label>
-            <select class="form-select" name="specialization_id">
-                <option value="">-- Select --</option>
+    <div class="mb-2">
+        <label>Start Time</label>
+        <input type="time" class="form-control" name="start_time"
+               value="<?= $event['start_time'] ?>">
+    </div>
 
-                <?php foreach ($specs as $s) { ?>
-                    <option value="<?= $s['id'] ?>"
-                        <?= $r['specialization_id'] == $s['id'] ? 'selected' : '' ?>>
-                        <?= $s['name'] ?>
-                    </option>
-                <?php } ?>
+    <div class="mb-2">
+        <label>End Time</label>
+        <input type="time" class="form-control" name="end_time"
+               value="<?= $event['end_time'] ?>">
+    </div>
 
-            </select>
-        </div>
+    <div class="mb-2">
+        <label>Location</label>
+        <input type="text" class="form-control" name="location"
+               value="<?= htmlspecialchars($event['location']) ?>">
+    </div>
 
-        <button type="submit" class="btn btn-primary mt-3">
-            Update User
-        </button>
+    <div class="mb-2">
+        <label>Capacity</label>
+        <input type="number" class="form-control" name="capacity"
+               value="<?= $event['capacity'] ?>">
+    </div>
 
-    </form>
+    <div class="mb-2">
+        <label>Status</label>
+        <select class="form-select" name="status">
+            <option value="pending" <?= $event['status']=='pending'?'selected':'' ?>>Pending</option>
+            <option value="approved" <?= $event['status']=='approved'?'selected':'' ?>>Approved</option>
+            <option value="cancelled" <?= $event['status']=='cancelled'?'selected':'' ?>>Cancelled</option>
+        </select>
+    </div>
+
+    <div class="mb-2">
+        <label>Type</label>
+        <select class="form-select" name="event_type">
+            <option value="public" <?= $event['event_type']=='public'?'selected':'' ?>>Public</option>
+            <option value="private" <?= $event['event_type']=='private'?'selected':'' ?>>Private</option>
+        </select>
+    </div>
+
+    <div class="mb-2">
+        <label>Price</label>
+        <input type="number" step="0.01" class="form-control" name="price"
+               value="<?= $event['price'] ?>">
+    </div>
+
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" name="payment_required"
+               <?= $event['payment_required'] ? 'checked' : '' ?>>
+        <label class="form-check-label">Payment Required</label>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">
+        Update Event
+    </button>
+
+</form>
 </div>
 
 <?php require_once('../../templates/footer.php') ?>

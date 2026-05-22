@@ -11,7 +11,6 @@ require_once __DIR__ . "/connect.php";
 $role = $_SESSION['role'] ?? '';
 $user_id = (int)($_SESSION['Aid'] ?? 0);
 
-
 $assigned = [];
 $registered = [];
 
@@ -22,6 +21,7 @@ if ($role === 'employee' && $user_id) {
         FROM event_assignments
         WHERE staff_id = $user_id
     ");
+
     while ($r = mysqli_fetch_assoc($res)) {
         $assigned[] = (int)$r['event_id'];
     }
@@ -31,6 +31,7 @@ if ($role === 'employee' && $user_id) {
         FROM event_participants
         WHERE participant_id = $user_id
     ");
+
     while ($r = mysqli_fetch_assoc($res)) {
         $registered[] = (int)$r['event_id'];
     }
@@ -42,7 +43,6 @@ if ($role === 'employee' && $user_id) {
 
 <head>
     <title>Enigma | Events</title>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -73,16 +73,16 @@ if ($role === 'employee' && $user_id) {
 
 <?php
 $query1 = "SELECT 
-                event_id,
-                title,
-                description,
-                event_type,
-                location,
-                event_date,
-                start_time,
-                end_time,
-                status
-            FROM events";
+            event_id,
+            title,
+            description,
+            event_type,
+            location,
+            event_date,
+            start_time,
+            end_time,
+            status
+          FROM events";
 
 $exe1 = mysqli_query($dbc, $query1);
 ?>
@@ -92,8 +92,8 @@ $exe1 = mysqli_query($dbc, $query1);
 
 <thead class="table-dark">
 <tr>
-    <th>Event ID</th>
-    <th>Event Name</th>
+    <th>ID</th>
+    <th>Name</th>
     <th>Description</th>
     <th>Type</th>
     <th>Location</th>
@@ -152,47 +152,21 @@ $canJoin = $isActive && (!$isPrivate || $isAssigned);
     </td>
 
     <td>
-        <?php if ($role === 'employee') { ?>
-
-            <?php if ($row1['status'] === 'cancelled') { ?>
-                <span class="badge bg-danger">Cancelled</span>
-
-            <?php } elseif ($isRegistered) { ?>
-                <span class="badge bg-success">Registered</span>
-
-            <?php } elseif (!$isActive) { ?>
-                <span class="badge bg-warning text-dark">Not Available</span>
-
-            <?php } elseif ($isPrivate && $isAssigned) { ?>
-                <span class="badge bg-warning text-dark">Invited</span>
-
-            <?php } elseif (!$isPrivate) { ?>
-                <span class="badge bg-primary">Public Event</span>
-
-            <?php } else { ?>
-                <span class="badge bg-secondary">Invite Only</span>
-            <?php } ?>
-
-        <?php } else { ?>
-
-            <?php
-            $status = $row1['status'];
-
-            if ($status === 'approved') {
-                echo '<span class="badge bg-success">Approved</span>';
-            } elseif ($status === 'pending') {
-                echo '<span class="badge bg-warning text-dark">Pending</span>';
-            } elseif ($status === 'cancelled') {
-                echo '<span class="badge bg-danger">Cancelled</span>';
-            }
-            ?>
-
-        <?php } ?>
+        <?php
+        if ($row1['status'] === 'approved') {
+            echo '<span class="badge bg-success">Approved</span>';
+        } elseif ($row1['status'] === 'pending') {
+            echo '<span class="badge bg-warning text-dark">Pending</span>';
+        } elseif ($row1['status'] === 'cancelled') {
+            echo '<span class="badge bg-danger">Cancelled</span>';
+        }
+        ?>
     </td>
 
     <td class="text-nowrap">
 
         <?php if ($role === 'admin') { ?>
+
             <a href="./components/event/update.php?id=<?= $event_id ?>" class="btn btn-info btn-sm">
                 <i class='bx bx-edit'></i>
             </a>
@@ -202,6 +176,12 @@ $canJoin = $isActive && (!$isPrivate || $isAssigned);
                onclick="return confirm('Delete this event?');">
                 <i class='bx bx-trash'></i>
             </a>
+
+            <a href="./components/event/assign_staff.php?id=<?= $event_id ?>"
+               class="btn btn-warning btn-sm">
+                <i class='bx bx-user-plus'></i>
+            </a>
+
         <?php } ?>
 
         <?php if ($role === 'employee') { ?>

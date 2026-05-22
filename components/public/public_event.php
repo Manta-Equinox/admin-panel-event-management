@@ -127,7 +127,7 @@ if (mysqli_num_rows($result) > 0) {
 
         else {
             echo "
-                <form method='POST' action='participate.php'>
+                <form method='POST' action='public_participate.php'>
                     <input type='hidden' name='event_id' value='{$event_id}'>
                     <button type='submit' class='btn btn-primary w-100 mt-2'>
                         Participate
