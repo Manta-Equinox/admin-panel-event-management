@@ -8,16 +8,13 @@ if (!isset($_SESSION['Pid'])) {
 }
 
 $event_id = filter_input(INPUT_POST, 'event_id', FILTER_VALIDATE_INT);
-$participant_id = (int) $_SESSION['Pid'];
+$participant_id = (int)$_SESSION['Pid'];
 
 if (!$event_id) {
     header("Location: public_event.php");
     exit();
 }
 
-/* =========================
-   CHECK IF ALREADY REGISTERED
-========================= */
 $check = $dbc->prepare("
     SELECT id 
     FROM event_participants 
@@ -32,20 +29,15 @@ if ($res->num_rows > 0) {
     exit();
 }
 
-$qr_token = bin2hex(random_bytes(16)); 
-
 $stmt = $dbc->prepare("
-    INSERT INTO event_participants (event_id, participant_id, status, qr_token)
-    VALUES (?, ?, 'registered', ?)
+    INSERT INTO event_participants (event_id, participant_id, status)
+    VALUES (?, ?, 'registered')
 ");
-$stmt->bind_param("iis", $event_id, $participant_id, $qr_token);
+$stmt->bind_param("ii", $event_id, $participant_id);
 
-if ($stmt->execute()) {
-
-    header("Location: show_qr.php?token=" . $qr_token);
-    exit();
-
+if (!$stmt->execute()) {
+    die("Failed registration: " . $stmt->error);
 }
 
-die("Failed: " . $stmt->error);
-?>
+header("Location: show_qr.php?event_id=$event_id");
+exit();
