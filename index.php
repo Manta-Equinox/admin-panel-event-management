@@ -377,7 +377,7 @@ if (isset($_SESSION["Aname"])) {
                                     <input type="submit" name="submit" value="Continue">
                                 </div>
                                <div style="text-align:center; margin-top:10px;">
-                                    <a href="participants_login.php" style="color:#5469d4; font-weight:600; text-decoration:none;">
+                                    <a href="participant_login.php" style="color:#5469d4; font-weight:600; text-decoration:none;">
                                         I'm a participant
                                     </a>
                                 </div>

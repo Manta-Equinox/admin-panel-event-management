@@ -13,9 +13,6 @@ if ($event_id <= 0) {
     die("Invalid event ID");
 }
 
-/* =========================
-   EVENT INFO
-========================= */
 $stmt = $dbc->prepare("
     SELECT event_id, title, status
     FROM events
@@ -29,9 +26,6 @@ if (!$event) {
     die("Event not found.");
 }
 
-/* =========================
-   PARTICIPANTS
-========================= */
 $stmt = $dbc->prepare("
     SELECT 
         id,

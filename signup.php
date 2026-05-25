@@ -1,49 +1,14 @@
 <?php
 session_start();
-require_once __DIR__ . "/connect.php";
 
-$message = "";
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $name = trim($_POST["name"]);
-    $email = trim($_POST["email"]);
-    $password = $_POST["password"];
-    $confirm = $_POST["confirm_password"];
-
-    if ($password !== $confirm) {
-        $message = "Passwords do not match.";
-    } else {
-
-        $check = mysqli_prepare($dbc, "SELECT participant_id FROM participants WHERE email = ?");
-        mysqli_stmt_bind_param($check, "s", $email);
-        mysqli_stmt_execute($check);
-        mysqli_stmt_store_result($check);
-
-        if (mysqli_stmt_num_rows($check) > 0) {
-            $message = "Email already registered.";
-        } else {
-
-            $hashed = password_hash($password, PASSWORD_DEFAULT);
-
-            $stmt = mysqli_prepare($dbc, "
-                INSERT INTO participants (name, email, password)
-                VALUES (?, ?, ?)
-            ");
-
-            mysqli_stmt_bind_param($stmt, "sss", $name, $email, $hashed);
-
-            if (mysqli_stmt_execute($stmt)) {
-                header("Location: index.php");
-                exit();
-            } else {
-                $message = "Error creating account.";
-            }
-        }
-    }
+if (isset($_SESSION["Pid"])) {
+    header("Location: components/public/public_event.php");
+    exit();
 }
-?>
 
+$error = $_GET['error'] ?? '';
+$success = $_GET['success'] ?? '';
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -103,9 +68,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         .msg {
             text-align: center;
-            color: red;
             font-size: 14px;
             margin-bottom: 10px;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
         }
 
         .footer {
@@ -128,15 +100,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <h2>Create Account</h2>
 
-    <?php if (!empty($message)) echo "<div class='msg'>$message</div>"; ?>
+    <?php if ($error): ?>
+        <div class="msg error"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
 
-    <form method="POST">
+    <?php if ($success): ?>
+        <div class="msg success">Account created successfully. You can login now.</div>
+    <?php endif; ?>
+
+    <form method="POST" action="participant_signup_handler.php">
+
         <input type="text" name="name" placeholder="Full Name" required>
+
         <input type="email" name="email" placeholder="Email" required>
+
         <input type="password" name="password" placeholder="Password" required>
+
         <input type="password" name="confirm_password" placeholder="Confirm Password" required>
 
         <button type="submit">Sign Up</button>
+
     </form>
 
     <div class="footer">
