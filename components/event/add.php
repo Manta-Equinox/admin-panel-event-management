@@ -12,74 +12,6 @@ if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'employe
     header("Location: ../../home.php");
     exit();
 }
-
-$created_by = $_SESSION['Aid'] ?? null;
-
-if (!$created_by) {
-    header("Location: ../../index.php");
-    exit();
-}
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $title      = trim($_POST['title'] ?? '');
-    $desc       = trim($_POST['description'] ?? '');
-    $type       = trim($_POST['event_type'] ?? 'public');
-    $date       = trim($_POST['event_date'] ?? '');
-    $start_time = trim($_POST['start_time'] ?? '');
-    $end_time   = trim($_POST['end_time'] ?? '');
-    $location   = trim($_POST['location'] ?? '');
-    $capacity   = (int)($_POST['capacity'] ?? 0);
-
-    if (
-        $title === '' ||
-        $desc === '' ||
-        $type === '' ||
-        $date === '' ||
-        $start_time === '' ||
-        $location === ''
-    ) {
-        $fmsg = "Please fill all required fields.";
-    } else {
-
-        if ($capacity < 0) {
-            $capacity = 0;
-        }
-
-        $stmt = $dbc->prepare("
-            INSERT INTO events 
-            (title, description, event_type, event_date, start_time, end_time, location, created_by, capacity, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-        ");
-
-        if (!$stmt) {
-            $fmsg = "Database error: " . $dbc->error;
-        } else {
-
-            $stmt->bind_param(
-                "sssssssii",
-                $title,
-                $desc,
-                $type,
-                $date,
-                $start_time,
-                $end_time,
-                $location,
-                $created_by,
-                $capacity
-            );
-
-            if ($stmt->execute()) {
-                header("Location: ../../events.php");
-                exit();
-            } else {
-                $fmsg = "Insert failed: " . $stmt->error;
-            }
-
-            $stmt->close();
-        }
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -101,17 +33,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <section class="home-section">
 
-<div class="container" style="padding-top: 120px;">
+<div class="container" style="padding-top: 120px; max-width: 800px;">
 
     <h4 class="fw-bold mb-3">
         <i class='bx bx-calendar-plus'></i> Add New Event
     </h4>
 
-    <?php if (isset($fmsg)) { ?>
-        <div class="alert alert-danger"><?= $fmsg ?></div>
-    <?php } ?>
+    <div id="msg"></div>
 
-    <form method="post">
+    <form id="eventForm">
 
         <input type="text" name="title" class="form-control mb-2" placeholder="Title" required>
 
@@ -132,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <input type="number" name="capacity" class="form-control mb-3" placeholder="Capacity" min="0">
 
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary w-100">
             <i class='bx bx-plus'></i> Create Event
         </button>
 
@@ -143,6 +73,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </section>
 
 <?php include_once('../../templates/footer.php'); ?>
+
+<script>
+document.getElementById("eventForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    const res = await fetch("../../api/events/add.php", {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await res.json();
+
+    const msgBox = document.getElementById("msg");
+
+    if (data.status === "success") {
+        msgBox.innerHTML = `<div class="alert alert-success">Event created successfully</div>`;
+        this.reset();
+    } else {
+        msgBox.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+    }
+});
+</script>
 
 </body>
 </html>

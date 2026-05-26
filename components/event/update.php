@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 require_once __DIR__ . "/../../api/config/db.php";
 
 if (!isset($_SESSION['Aname'])) {
@@ -19,73 +20,12 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $id = (int) $_GET['id'];
 
 $stmt = $dbc->prepare("SELECT * FROM events WHERE event_id = ?");
-if (!$stmt) {
-    die("Database error: " . $dbc->error);
-}
-
 $stmt->bind_param("i", $id);
 $stmt->execute();
-
-$result = $stmt->get_result();
-$event = $result->fetch_assoc();
+$event = $stmt->get_result()->fetch_assoc();
 
 if (!$event) {
     die("Event not found.");
-}
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $title       = trim($_POST['title'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $date        = $_POST['event_date'] ?? null;
-    $start_time  = $_POST['start_time'] ?? null;
-    $end_time    = $_POST['end_time'] ?? null;
-    $location    = trim($_POST['location'] ?? '');
-    $capacity    = (int)($_POST['capacity'] ?? 0);
-    $status      = $_POST['status'] ?? 'pending';
-
-    $allowed_status = ['pending', 'approved', 'cancelled'];
-    if (!in_array($status, $allowed_status)) {
-        $status = 'pending';
-    }
-
-    if ($title === '') {
-        $fmsg = "Title is required.";
-    } else {
-
-        $update = $dbc->prepare("
-            UPDATE events
-            SET title = ?, description = ?, event_date = ?, start_time = ?,
-                end_time = ?, location = ?, capacity = ?, status = ?
-            WHERE event_id = ?
-        ");
-
-        if (!$update) {
-            die("Update prepare failed: " . $dbc->error);
-        }
-
-        $update->bind_param(
-            "ssssssisi",
-            $title,
-            $description,
-            $date,
-            $start_time,
-            $end_time,
-            $location,
-            $capacity,
-            $status,
-            $id
-        );
-
-        if ($update->execute()) {
-            header("Location: ../../events.php");
-            exit();
-        } else {
-            $fmsg = "Failed to update event: " . $update->error;
-        }
-
-        $update->close();
-    }
 }
 ?>
 
@@ -108,15 +48,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <section class="home-section">
 
-<div class="container" style="padding-top: 120px;">
+<div class="container" style="padding-top: 120px; max-width: 800px;">
 
-    <?php if (isset($fmsg)) { ?>
-        <div class="alert alert-danger"><?= $fmsg ?></div>
-    <?php } ?>
+    <h2 class="mb-3">Update Event</h2>
 
-    <h2>Update Event</h2>
+    <div id="msg"></div>
 
-    <form method="post">
+    <form id="updateForm">
+
+        <input type="hidden" name="event_id" value="<?= $id ?>">
 
         <div class="mb-2">
             <label>Title</label>
@@ -168,7 +108,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary mt-3">
+        <button type="submit" class="btn btn-primary mt-3 w-100">
             Update Event
         </button>
 
@@ -176,9 +116,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </div>
 
-<?php require_once('../../templates/footer.php') ?>
-
 </section>
+
+<?php include_once('../../templates/footer.php'); ?>
+
+<script>
+document.getElementById("updateForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    const res = await fetch("../../api/events/update.php", {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await res.json();
+
+    const msgBox = document.getElementById("msg");
+
+    if (data.success) {
+        msgBox.innerHTML = `<div class="alert alert-success">Event updated successfully</div>`;
+        setTimeout(() => {
+            window.location.href = "../../events.php";
+        }, 1000);
+    } else {
+        msgBox.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+    }
+});
+</script>
 
 </body>
 </html>

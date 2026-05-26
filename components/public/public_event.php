@@ -23,7 +23,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 while ($row = $result->fetch_assoc()) {
-    $joined[$row['event_id']] = true;
+    $joined[$row['event_id']] = true; 
 }
 ?>
 

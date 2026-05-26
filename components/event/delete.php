@@ -18,7 +18,7 @@ if ($id <= 0) {
     die("Invalid ID");
 }
 
-$check = $dbc->prepare("SELECT 1 FROM events WHERE event_id = ? LIMIT 1");
+$check = $dbc->prepare("SELECT event_id FROM events WHERE event_id = ? LIMIT 1");
 
 if (!$check) {
     die("Database error: " . $dbc->error);
@@ -26,10 +26,9 @@ if (!$check) {
 
 $check->bind_param("i", $id);
 $check->execute();
+$result = $check->get_result();
 
-$res = $check->get_result();
-
-if ($res->num_rows === 0) {
+if ($result->num_rows === 0) {
     $check->close();
     die("Event not found.");
 }
@@ -45,12 +44,16 @@ if (!$stmt) {
 $stmt->bind_param("i", $id);
 
 if ($stmt->execute()) {
+
     $stmt->close();
+
     header("Location: ../../events.php?msg=deleted");
     exit();
+
 } else {
+
     $error = $stmt->error;
     $stmt->close();
+
     die("Failed to delete event: " . $error);
 }
-?>
