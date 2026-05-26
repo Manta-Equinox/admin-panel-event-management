@@ -7,6 +7,8 @@ if (!isset($_SESSION['Pid'])) {
     exit();
 }
 
+date_default_timezone_set("Asia/Manila");
+
 $event_id = isset($_GET['event_id']) ? (int)$_GET['event_id'] : 0;
 $participant_id = (int)$_SESSION['Pid'];
 
@@ -22,9 +24,10 @@ $stmt = $dbc->prepare("
         e.start_time,
         e.end_time,
         e.location,
-        ep.name
+        p.name
     FROM event_participants ep
     INNER JOIN events e ON e.event_id = ep.event_id
+    INNER JOIN participants p ON p.participant_id = ep.participant_id
     WHERE ep.event_id = ?
       AND ep.participant_id = ?
     LIMIT 1
@@ -38,6 +41,22 @@ if (!$data) {
     die("Invalid QR request");
 }
 
+$now = new DateTime("now");
+
+$start = new DateTime($data['event_date'] . ' ' . ($data['start_time'] ?? '00:00:00'));
+
+if (!empty($data['end_time'])) {
+    $end = new DateTime($data['event_date'] . ' ' . $data['end_time']);
+} else {
+    $end = new DateTime($data['event_date'] . ' 23:59:59');
+}
+
+if ($end <= $start) {
+    $end->modify('+1 day');
+}
+
+$isEnded = ($now > $end);
+
 $title = htmlspecialchars($data['title'] ?? '');
 $description = htmlspecialchars($data['description'] ?? '');
 $location = htmlspecialchars($data['location'] ?? '');
@@ -45,13 +64,12 @@ $name = htmlspecialchars($data['name'] ?? '');
 
 $date = $data['event_date'] ?? '';
 
-$start = !empty($data['start_time']) ? date("h:i A", strtotime($data['start_time'])) : null;
-$end = !empty($data['end_time']) ? date("h:i A", strtotime($data['end_time'])) : null;
+$startTime = !empty($data['start_time']) ? date("h:i A", strtotime($data['start_time'])) : null;
+$endTime   = !empty($data['end_time']) ? date("h:i A", strtotime($data['end_time'])) : null;
 
-$time = ($start && $end) ? "$start - $end" : ($start ?? 'Not set');
+$time = ($startTime && $endTime) ? "$startTime - $endTime" : ($startTime ?? 'Not set');
 
 $qrText = "ENIGMA EVENT | $title | USER: $name | EVENT: $event_id";
-
 $qrImage = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrText);
 ?>
 
@@ -60,7 +78,9 @@ $qrImage = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . ur
 <head>
     <meta charset="UTF-8">
     <title>QR Code</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
         body { background:#f5f6fa; }
         .box {
@@ -89,6 +109,12 @@ $qrImage = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . ur
 
     <h3><?= $title ?></h3>
 
+    <?php if ($isEnded): ?>
+        <div class="alert alert-danger">
+            This event has ended. QR is no longer valid.
+        </div>
+    <?php endif; ?>
+
     <p><span class="label">Description:</span> <?= $description ?></p>
     <p><span class="label">Date:</span> <?= htmlspecialchars($date) ?></p>
     <p><span class="label">Time:</span> <?= htmlspecialchars($time) ?></p>
@@ -103,7 +129,16 @@ $qrImage = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . ur
     <div class="text-center">
         <img id="qr" src="<?= $qrImage ?>" class="qr-img mb-3">
         <br>
-        <button class="btn btn-primary" onclick="downloadQR()">Save QR Code</button>
+
+        <?php if ($isEnded): ?>
+            <button class="btn btn-secondary w-100" disabled>
+                QR Disabled (Event Ended)
+            </button>
+        <?php else: ?>
+            <button class="btn btn-primary" onclick="downloadQR()">
+                Save QR Code
+            </button>
+        <?php endif; ?>
     </div>
 
     <p class="text-muted text-center mt-3">
@@ -116,6 +151,7 @@ $qrImage = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . ur
 
 </div>
 
+<?php if (!$isEnded): ?>
 <script>
 function downloadQR() {
     const img = document.getElementById("qr");
@@ -132,6 +168,7 @@ function downloadQR() {
         });
 }
 </script>
+<?php endif; ?>
 
 </body>
 </html>

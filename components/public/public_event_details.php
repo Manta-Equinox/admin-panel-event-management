@@ -51,12 +51,17 @@ if (!$event) {
 
 $now = new DateTime("now");
 
-$start = new DateTime($event['event_date'] . ' ' . $event['start_time']);
-$end   = new DateTime($event['event_date'] . ' ' . $event['end_time']);
+$startTimeStr = $event['start_time'] ?? '00:00:00';
+$endTimeStr   = $event['end_time'] ?? '23:59:59';
 
-if (!empty($event['end_time']) && $end <= $start) {
+$start = new DateTime($event['event_date'] . ' ' . $startTimeStr);
+$end   = new DateTime($event['event_date'] . ' ' . $endTimeStr);
+
+if ($end <= $start) {
     $end->modify('+1 day');
 }
+
+$isEnded = ($now > $end);
 
 if ($now < $start) {
     $eventStatus = "<span class='badge bg-info'>Upcoming</span>";
@@ -84,11 +89,10 @@ if ($already_joined) {
     $stmt = $dbc->prepare("
         SELECT p.name, qt.qr_code
         FROM event_participants ep
-        JOIN participants p
-            ON p.participant_id = ep.participant_id
-        LEFT JOIN qr_tokens qt
+        JOIN participants p ON p.participant_id = ep.participant_id
+        LEFT JOIN qr_tokens qt 
             ON qt.event_id = ep.event_id
-            AND qt.participant_id = ep.participant_id
+           AND qt.participant_id = ep.participant_id
         WHERE ep.event_id = ?
           AND ep.participant_id = ?
         LIMIT 1
@@ -108,6 +112,7 @@ if ($already_joined) {
 <head>
     <meta charset="UTF-8">
     <title>Event Details</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
@@ -155,12 +160,18 @@ if ($already_joined) {
             You have not joined this event yet.
         </div>
 
-        <form method="POST" action="public_participate.php">
-            <input type="hidden" name="event_id" value="<?= $event_id ?>">
-            <button type="submit" class="btn btn-primary w-100">
-                Participate
+        <?php if (!$isEnded): ?>
+            <form method="POST" action="public_participate.php">
+                <input type="hidden" name="event_id" value="<?= $event_id ?>">
+                <button type="submit" class="btn btn-primary w-100">
+                    Participate
+                </button>
+            </form>
+        <?php else: ?>
+            <button class="btn btn-secondary w-100" disabled>
+                Event Ended
             </button>
-        </form>
+        <?php endif; ?>
 
     <?php else: ?>
 
@@ -172,10 +183,19 @@ if ($already_joined) {
 
             <div class="text-center">
                 <img id="qrImage" src="<?= htmlspecialchars($qrCode) ?>" class="qr-img mb-3">
-                <br>
-                <button class="btn btn-primary" onclick="downloadQR()">Save QR Code</button>
+
+                <?php if ($isEnded): ?>
+                    <button class="btn btn-secondary w-100" disabled>
+                        QR Disabled (Event Ended)
+                    </button>
+                <?php else: ?>
+                    <button class="btn btn-primary" onclick="downloadQR()">
+                        Save QR Code
+                    </button>
+                <?php endif; ?>
             </div>
 
+            <?php if (!$isEnded): ?>
             <script>
                 function downloadQR() {
                     const link = document.createElement('a');
@@ -186,17 +206,16 @@ if ($already_joined) {
                     document.body.removeChild(link);
                 }
             </script>
+            <?php endif; ?>
 
         <?php else: ?>
-
             <div class="alert alert-warning">
                 QR Code not generated yet.
             </div>
-
         <?php endif; ?>
 
         <form method="POST" class="mt-3"
-              onsubmit="return confirm('Are you sure you want to cancel your participation?');">
+              onsubmit="return confirm('Cancel participation?');">
             <button type="submit" name="cancel" class="btn btn-danger w-100">
                 Cancel Participation
             </button>

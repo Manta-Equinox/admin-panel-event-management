@@ -57,6 +57,11 @@ while ($row = $result->fetch_assoc()) {
             transform: translateY(-4px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.12);
         }
+
+        .small-info {
+            font-size: 13px;
+            color: #666;
+        }
     </style>
 </head>
 
@@ -91,12 +96,26 @@ if (mysqli_num_rows($result) > 0) {
         $event_id = (int)$row['event_id'];
         $already_joined = isset($joined[$event_id]);
 
-        $start = new DateTime($row['event_date'] . ' ' . $row['start_time']);
-        $end   = new DateTime($row['event_date'] . ' ' . $row['end_time']);
+        $countStmt = $dbc->prepare("
+            SELECT COUNT(*) AS total
+            FROM event_participants
+            WHERE event_id = ?
+        ");
+        $countStmt->bind_param("i", $event_id);
+        $countStmt->execute();
+        $participants = $countStmt->get_result()->fetch_assoc()['total'] ?? 0;
 
-        if (!empty($row['end_time']) && $end <= $start) {
+        $startTime = $row['start_time'] ?: '00:00:00';
+        $endTime   = $row['end_time'] ?: '23:59:59';
+
+        $start = new DateTime($row['event_date'] . ' ' . $startTime);
+        $end   = new DateTime($row['event_date'] . ' ' . $endTime);
+
+        if ($end <= $start) {
             $end->modify('+1 day');
         }
+
+        $isEnded = ($now > $end);
 
         if ($now < $start) {
             $eventStatus = "<span class='badge bg-info'>Upcoming</span>";
@@ -117,6 +136,10 @@ if (mysqli_num_rows($result) > 0) {
                     <?= $eventStatus ?>
                 </div>
 
+                <div class="small-info mb-2">
+                    👥 <?= $participants ?> participant(s) joined
+                </div>
+
                 <hr>
 
                 <p><strong>Date:</strong> <?= $row['event_date'] ?></p>
@@ -135,12 +158,18 @@ if (mysqli_num_rows($result) > 0) {
 
                 <?php } else { ?>
 
-                    <form method="POST" action="public_participate.php">
-                        <input type="hidden" name="event_id" value="<?= $event_id ?>">
-                        <button type="submit" class="btn btn-primary w-100">
-                            Participate
+                    <?php if ($isEnded) { ?>
+                        <button class="btn btn-secondary w-100" disabled>
+                            Event Ended
                         </button>
-                    </form>
+                    <?php } else { ?>
+                        <form method="POST" action="public_participate.php">
+                            <input type="hidden" name="event_id" value="<?= $event_id ?>">
+                            <button type="submit" class="btn btn-primary w-100">
+                                Participate
+                            </button>
+                        </form>
+                    <?php } ?>
 
                 <?php } ?>
 
