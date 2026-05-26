@@ -2,13 +2,19 @@
 session_start();
 
 if (!isset($_SESSION['Aname'])) {
-    header('location: index.php');
+    header('Location: index.php');
     exit();
 }
 
-require_once __DIR__ . "/connect.php";require_once __DIR__ ."/api/config/db.php";
+require_once __DIR__ . "/api/config/db.php";
+
+if (!isset($dbc)) {
+    die("Database connection failed.");
+}
+
 $role = $_SESSION['role'] ?? '';
 $user_id = (int)($_SESSION['Aid'] ?? 0);
+date_default_timezone_set("Asia/Manila");
 ?>
 
 <!DOCTYPE html>
@@ -33,15 +39,17 @@ $user_id = (int)($_SESSION['Aid'] ?? 0);
 <div class="container" style="padding-top: 120px;">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
+
         <h4 class="fw-bold mb-0">
             <i class='bx bx-calendar'></i> Events
         </h4>
 
-        <?php if ($role === 'admin') { ?>
+        <?php if ($role === 'admin' || $role === 'employee') { ?>
             <a href="./components/event/add.php" class="btn btn-primary">
-                <i class='bx bx-plus'></i> Add New
+                <i class='bx bx-plus'></i> Add Event
             </a>
         <?php } ?>
+
     </div>
 
 <?php
@@ -59,6 +67,12 @@ $query = "SELECT
           ORDER BY event_id DESC";
 
 $exe = mysqli_query($dbc, $query);
+
+if (!$exe) {
+    die("Query failed: " . mysqli_error($dbc));
+}
+
+$now = new DateTime();
 ?>
 
 <div class="table-responsive">
@@ -74,6 +88,7 @@ $exe = mysqli_query($dbc, $query);
     <th>Date</th>
     <th>Time</th>
     <th>Status</th>
+    <th>Event State</th>
     <th>Action</th>
 </tr>
 </thead>
@@ -84,7 +99,33 @@ $exe = mysqli_query($dbc, $query);
 
 <?php
 $event_id = (int)$row['event_id'];
-$isApproved = ($row['status'] === 'approved');
+
+$startDT = null;
+$endDT = null;
+
+if (!empty($row['event_date']) && !empty($row['start_time'])) {
+    $startDT = new DateTime($row['event_date'] . ' ' . $row['start_time']);
+}
+
+if (!empty($row['event_date']) && !empty($row['end_time'])) {
+    $endDT = new DateTime($row['event_date'] . ' ' . $row['end_time']);
+
+    if ($startDT && $endDT && $endDT < $startDT) {
+        $endDT->modify('+1 day');
+    }
+}
+
+$eventState = "unknown";
+
+if ($startDT && $endDT) {
+    if ($now < $startDT) {
+        $eventState = "upcoming";
+    } elseif ($now >= $startDT && $now <= $endDT) {
+        $eventState = "ongoing";
+    } else {
+        $eventState = "ended";
+    }
+}
 ?>
 
 <tr>
@@ -130,11 +171,26 @@ $isApproved = ($row['status'] === 'approved');
         ?>
     </td>
 
+    <td>
+        <?php
+        if ($eventState === "upcoming") {
+            echo '<span class="badge bg-info">Upcoming</span>';
+        } elseif ($eventState === "ongoing") {
+            echo '<span class="badge bg-success">Ongoing</span>';
+        } elseif ($eventState === "ended") {
+            echo '<span class="badge bg-secondary">Ended</span>';
+        } else {
+            echo '<span class="badge bg-light text-dark">Unknown</span>';
+        }
+        ?>
+    </td>
+
     <td class="text-nowrap">
 
         <?php if ($role === 'admin') { ?>
 
-            <a href="./components/event/update.php?id=<?= $event_id ?>" class="btn btn-info btn-sm">
+            <a href="./components/event/update.php?id=<?= $event_id ?>"
+               class="btn btn-info btn-sm">
                 <i class='bx bx-edit'></i>
             </a>
 
@@ -144,14 +200,25 @@ $isApproved = ($row['status'] === 'approved');
                 <i class='bx bx-trash'></i>
             </a>
 
+            <a href="./components/event/assign_staff.php?id=<?= $event_id ?>"
+               class="btn btn-secondary btn-sm">
+                <i class='bx bx-user-plus'></i>
+            </a>
+
+        <?php } ?>
+
+        <?php if ($role === 'employee') { ?>
+            <span class="text-muted small">
+                View only
+            </span>
         <?php } ?>
 
         <?php if ($role === 'participant') { ?>
 
-            <?php if ($isApproved) { ?>
-                <span class="text-success fw-bold">Open to Participants</span>
+            <?php if ($row['status'] === 'approved') { ?>
+                <span class="text-success fw-bold">Open</span>
             <?php } else { ?>
-                <span class="text-muted">Not Available</span>
+                <span class="text-muted">Closed</span>
             <?php } ?>
 
         <?php } ?>

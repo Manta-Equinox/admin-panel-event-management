@@ -8,7 +8,7 @@ if (!isset($_SESSION['Aname'])) {
 }
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header('location: ../../home.php');
+    header('Location: ../../home.php');
     exit();
 }
 
@@ -19,8 +19,13 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $id = (int) $_GET['id'];
 
 $stmt = $dbc->prepare("SELECT * FROM events WHERE event_id = ?");
+if (!$stmt) {
+    die("Database error: " . $dbc->error);
+}
+
 $stmt->bind_param("i", $id);
 $stmt->execute();
+
 $result = $stmt->get_result();
 $event = $result->fetch_assoc();
 
@@ -36,8 +41,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $start_time  = $_POST['start_time'] ?? null;
     $end_time    = $_POST['end_time'] ?? null;
     $location    = trim($_POST['location'] ?? '');
-    $capacity    = $_POST['capacity'] ?? null;
+    $capacity    = (int)($_POST['capacity'] ?? 0);
     $status      = $_POST['status'] ?? 'pending';
+
+    $allowed_status = ['pending', 'approved', 'cancelled'];
+    if (!in_array($status, $allowed_status)) {
+        $status = 'pending';
+    }
 
     if ($title === '') {
         $fmsg = "Title is required.";
@@ -49,6 +59,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 end_time = ?, location = ?, capacity = ?, status = ?
             WHERE event_id = ?
         ");
+
+        if (!$update) {
+            die("Update prepare failed: " . $dbc->error);
+        }
 
         $update->bind_param(
             "ssssssisi",
@@ -142,7 +156,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <div class="mb-2">
             <label>Capacity</label>
             <input type="number" class="form-control" name="capacity"
-                   value="<?= $event['capacity'] ?>">
+                   value="<?= (int)$event['capacity'] ?>">
         </div>
 
         <div class="mb-2">

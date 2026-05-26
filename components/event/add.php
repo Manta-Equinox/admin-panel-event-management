@@ -8,23 +8,28 @@ if (!isset($_SESSION['Aname'])) {
     exit();
 }
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'employee'])) {
     header("Location: ../../home.php");
     exit();
 }
 
 $created_by = $_SESSION['Aid'] ?? null;
 
+if (!$created_by) {
+    header("Location: ../../index.php");
+    exit();
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $title        = trim($_POST['title'] ?? '');
-    $desc         = trim($_POST['description'] ?? '');
-    $type         = trim($_POST['event_type'] ?? 'public');
-    $date         = trim($_POST['event_date'] ?? '');
-    $start_time   = trim($_POST['start_time'] ?? '');
-    $end_time     = trim($_POST['end_time'] ?? '');
-    $location     = trim($_POST['location'] ?? '');
-    $capacity     = (int)($_POST['capacity'] ?? 0);
+    $title      = trim($_POST['title'] ?? '');
+    $desc       = trim($_POST['description'] ?? '');
+    $type       = trim($_POST['event_type'] ?? 'public');
+    $date       = trim($_POST['event_date'] ?? '');
+    $start_time = trim($_POST['start_time'] ?? '');
+    $end_time   = trim($_POST['end_time'] ?? '');
+    $location   = trim($_POST['location'] ?? '');
+    $capacity   = (int)($_POST['capacity'] ?? 0);
 
     if (
         $title === '' ||
@@ -37,33 +42,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $fmsg = "Please fill all required fields.";
     } else {
 
+        if ($capacity < 0) {
+            $capacity = 0;
+        }
+
         $stmt = $dbc->prepare("
             INSERT INTO events 
             (title, description, event_type, event_date, start_time, end_time, location, created_by, capacity, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ");
 
-        $stmt->bind_param(
-            "sssssssii",
-            $title,
-            $desc,
-            $type,
-            $date,
-            $start_time,
-            $end_time,
-            $location,
-            $created_by,
-            $capacity
-        );
-
-        if ($stmt->execute()) {
-            header("Location: ../../events.php");
-            exit();
+        if (!$stmt) {
+            $fmsg = "Database error: " . $dbc->error;
         } else {
-            $fmsg = "Insert failed: " . $stmt->error;
-        }
 
-        $stmt->close();
+            $stmt->bind_param(
+                "sssssssii",
+                $title,
+                $desc,
+                $type,
+                $date,
+                $start_time,
+                $end_time,
+                $location,
+                $created_by,
+                $capacity
+            );
+
+            if ($stmt->execute()) {
+                header("Location: ../../events.php");
+                exit();
+            } else {
+                $fmsg = "Insert failed: " . $stmt->error;
+            }
+
+            $stmt->close();
+        }
     }
 }
 ?>
@@ -101,7 +115,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <input type="text" name="title" class="form-control mb-2" placeholder="Title" required>
 
-        <input type="text" name="description" class="form-control mb-2" placeholder="Description" required>
+        <textarea name="description" class="form-control mb-2" placeholder="Description" required></textarea>
 
         <select name="event_type" class="form-control mb-2">
             <option value="public">Public</option>
@@ -116,7 +130,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <input type="text" name="location" class="form-control mb-2" placeholder="Location" required>
 
-        <input type="number" name="capacity" class="form-control mb-3" placeholder="Capacity">
+        <input type="number" name="capacity" class="form-control mb-3" placeholder="Capacity" min="0">
 
         <button type="submit" class="btn btn-primary">
             <i class='bx bx-plus'></i> Create Event

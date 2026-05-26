@@ -7,6 +7,8 @@ if (!isset($_SESSION['Pid'])) {
     exit();
 }
 
+date_default_timezone_set("Asia/Manila");
+
 $participant_id = (int) $_SESSION['Pid'];
 
 $joined = [];
@@ -66,9 +68,7 @@ while ($row = $result->fetch_assoc()) {
         <p class="m-0">Browse approved events</p>
     </div>
 
-    <a href="../../logout.php" class="btn btn-light btn-sm">
-        Logout
-    </a>
+    <a href="../../logout.php" class="btn btn-light btn-sm">Logout</a>
 </div>
 
 <div class="container mt-4">
@@ -81,14 +81,30 @@ if (!$result) {
     die("Query Error: " . mysqli_error($dbc));
 }
 
-if (mysqli_num_rows($result) > 0) {
+$now = new DateTime("now");
 
+if (mysqli_num_rows($result) > 0) {
     echo '<div class="row g-3">';
 
     while ($row = mysqli_fetch_assoc($result)) {
 
         $event_id = (int)$row['event_id'];
         $already_joined = isset($joined[$event_id]);
+
+        $start = new DateTime($row['event_date'] . ' ' . $row['start_time']);
+        $end   = new DateTime($row['event_date'] . ' ' . $row['end_time']);
+
+        if (!empty($row['end_time']) && $end <= $start) {
+            $end->modify('+1 day');
+        }
+
+        if ($now < $start) {
+            $eventStatus = "<span class='badge bg-info'>Upcoming</span>";
+        } elseif ($now >= $start && $now <= $end) {
+            $eventStatus = "<span class='badge bg-success'>Ongoing</span>";
+        } else {
+            $eventStatus = "<span class='badge bg-secondary'>Ended</span>";
+        }
         ?>
 
         <div class="col-md-4">
@@ -96,6 +112,10 @@ if (mysqli_num_rows($result) > 0) {
 
                 <h5><?= htmlspecialchars($row['title']) ?></h5>
                 <p class="text-muted"><?= htmlspecialchars($row['description']) ?></p>
+
+                <div class="mb-2">
+                    <?= $eventStatus ?>
+                </div>
 
                 <hr>
 

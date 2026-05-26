@@ -1,6 +1,5 @@
 <?php
 session_start();
-
 require_once __DIR__ . "/../../api/config/db.php";
 
 if (!isset($_SESSION['Aname'])) {
@@ -18,25 +17,40 @@ $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 if ($id <= 0) {
     die("Invalid ID");
 }
-$check = $dbc->prepare("SELECT event_id FROM events WHERE event_id = ?");
+
+$check = $dbc->prepare("SELECT 1 FROM events WHERE event_id = ? LIMIT 1");
+
+if (!$check) {
+    die("Database error: " . $dbc->error);
+}
+
 $check->bind_param("i", $id);
 $check->execute();
+
 $res = $check->get_result();
 
 if ($res->num_rows === 0) {
+    $check->close();
     die("Event not found.");
 }
+
 $check->close();
 
 $stmt = $dbc->prepare("DELETE FROM events WHERE event_id = ?");
+
+if (!$stmt) {
+    die("Database error: " . $dbc->error);
+}
+
 $stmt->bind_param("i", $id);
 
 if ($stmt->execute()) {
+    $stmt->close();
     header("Location: ../../events.php?msg=deleted");
     exit();
 } else {
-    die("Failed to delete event: " . $stmt->error);
+    $error = $stmt->error;
+    $stmt->close();
+    die("Failed to delete event: " . $error);
 }
-
-$stmt->close();
 ?>

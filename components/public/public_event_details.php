@@ -7,6 +7,8 @@ if (!isset($_SESSION['Pid'])) {
     exit();
 }
 
+date_default_timezone_set("Asia/Manila");
+
 $participant_id = (int) $_SESSION['Pid'];
 $event_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
@@ -45,6 +47,23 @@ $event = $stmt->get_result()->fetch_assoc();
 
 if (!$event) {
     die("Event not found");
+}
+
+$now = new DateTime("now");
+
+$start = new DateTime($event['event_date'] . ' ' . $event['start_time']);
+$end   = new DateTime($event['event_date'] . ' ' . $event['end_time']);
+
+if (!empty($event['end_time']) && $end <= $start) {
+    $end->modify('+1 day');
+}
+
+if ($now < $start) {
+    $eventStatus = "<span class='badge bg-info'>Upcoming</span>";
+} elseif ($now >= $start && $now <= $end) {
+    $eventStatus = "<span class='badge bg-success'>Ongoing</span>";
+} else {
+    $eventStatus = "<span class='badge bg-secondary'>Ended</span>";
 }
 
 $check = $dbc->prepare("
@@ -90,6 +109,7 @@ if ($already_joined) {
     <meta charset="UTF-8">
     <title>Event Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
         body { background: #f5f6fa; }
         .card-box {
@@ -111,15 +131,20 @@ if ($already_joined) {
         }
     </style>
 </head>
+
 <body>
 
 <div class="card-box">
 
     <h3><?= htmlspecialchars($event['title']) ?></h3>
 
-    <p><?= htmlspecialchars($event['description']) ?></p>
-    <p><b>Date:</b> <?= $event['event_date'] ?></p>
+    <div class="mb-2">
+        <?= $eventStatus ?>
+    </div>
 
+    <p><?= htmlspecialchars($event['description']) ?></p>
+
+    <p><b>Date:</b> <?= $event['event_date'] ?></p>
     <p><b>Location:</b> <?= htmlspecialchars($event['location']) ?></p>
 
     <hr>
@@ -170,7 +195,8 @@ if ($already_joined) {
 
         <?php endif; ?>
 
-        <form method="POST" class="mt-3" onsubmit="return confirm('Are you sure you want to cancel your participation?');">
+        <form method="POST" class="mt-3"
+              onsubmit="return confirm('Are you sure you want to cancel your participation?');">
             <button type="submit" name="cancel" class="btn btn-danger w-100">
                 Cancel Participation
             </button>

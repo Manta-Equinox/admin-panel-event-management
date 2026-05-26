@@ -8,32 +8,22 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 }
 
 $event_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
-
 if ($event_id <= 0) {
     die("Invalid event ID");
 }
 
-if (isset($_GET['unassign'])) {
+$sectionFilterMap = [
+    "event_manager" => "manager",
+    "registration"  => "registration",
+    "security"      => "security",
+    "decoration"    => "decoration",
+    "logistics"     => "logistics",
+    "technical"     => "technical"
+];
 
-    $assign_id = (int) $_GET['unassign'];
+$selected_section = $_GET['section'] ?? '';
 
-    $del = $dbc->prepare("
-        DELETE FROM event_assignments
-        WHERE assignment_id = ? AND event_id = ?
-    ");
-
-    $del->bind_param("ii", $assign_id, $event_id);
-    $del->execute();
-
-    header("Location: assign_staff.php?id=" . $event_id);
-    exit();
-}
-
-$stmt = $dbc->prepare("
-    SELECT event_id, title, event_type
-    FROM events
-    WHERE event_id = ?
-");
+$stmt = $dbc->prepare("SELECT event_id, title, event_type FROM events WHERE event_id = ?");
 $stmt->bind_param("i", $event_id);
 $stmt->execute();
 $event = $stmt->get_result()->fetch_assoc();
@@ -42,17 +32,44 @@ if (!$event) {
     die("Event not found.");
 }
 
-$staffList = mysqli_query($dbc, "
-    SELECT 
-        s.staff_id,
-        s.name,
-        sp.name AS specialization
-    FROM staff_users s
-    LEFT JOIN specializations sp ON s.specialization_id = sp.id
-    WHERE s.role = 'employee'
-");
+if (isset($_GET['unassign'])) {
+    $assign_id = (int) $_GET['unassign'];
 
-$assignedStaff = mysqli_query($dbc, "
+    $del = $dbc->prepare("
+        DELETE FROM event_assignments
+        WHERE assignment_id = ? AND event_id = ?
+    ");
+    $del->bind_param("ii", $assign_id, $event_id);
+    $del->execute();
+
+    header("Location: assign_staff.php?id=" . $event_id . "&section=" . $selected_section);
+    exit();
+}
+
+$filterSpecialization = $sectionFilterMap[$selected_section] ?? null;
+
+if ($filterSpecialization) {
+    $staffStmt = $dbc->prepare("
+        SELECT s.staff_id, s.name, sp.name AS specialization
+        FROM staff_users s
+        LEFT JOIN specializations sp ON s.specialization_id = sp.id
+        WHERE s.role = 'employee'
+        AND LOWER(sp.name) LIKE CONCAT('%', ?, '%')
+    ");
+    $staffStmt->bind_param("s", $filterSpecialization);
+} else {
+    $staffStmt = $dbc->prepare("
+        SELECT s.staff_id, s.name, sp.name AS specialization
+        FROM staff_users s
+        LEFT JOIN specializations sp ON s.specialization_id = sp.id
+        WHERE s.role = 'employee'
+    ");
+}
+
+$staffStmt->execute();
+$staffList = $staffStmt->get_result();
+
+$assignedStmt = $dbc->prepare("
     SELECT 
         ea.assignment_id,
         ea.section,
@@ -62,44 +79,48 @@ $assignedStaff = mysqli_query($dbc, "
     FROM event_assignments ea
     JOIN staff_users s ON ea.staff_id = s.staff_id
     LEFT JOIN specializations sp ON s.specialization_id = sp.id
-    WHERE ea.event_id = $event_id
+    WHERE ea.event_id = ?
     ORDER BY ea.assigned_at DESC
 ");
+$assignedStmt->bind_param("i", $event_id);
+$assignedStmt->execute();
+$assignedStaff = $assignedStmt->get_result();
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $staff_id = (int) ($_POST['staff_id'] ?? 0);
-    $section  = $_POST['section'] ?? '';
+    $staff_id = (int)($_POST['staff_id'] ?? 0);
+    $section  = trim($_POST['section'] ?? '');
 
     if ($staff_id <= 0 || $section === '') {
-        $msg = "Invalid staff selected.";
+        $msg = "Invalid selection.";
     } else {
 
         $check = $dbc->prepare("
-            SELECT 1 
-            FROM event_assignments
+            SELECT 1 FROM event_assignments
             WHERE event_id = ? AND section = ?
+            LIMIT 1
         ");
-
         $check->bind_param("is", $event_id, $section);
         $check->execute();
 
-        if ($check->get_result()->num_rows === 0) {
+        if ($check->get_result()->num_rows > 0) {
+            $msg = "Section already assigned.";
+        } else {
 
             $insert = $dbc->prepare("
                 INSERT INTO event_assignments (event_id, staff_id, section)
                 VALUES (?, ?, ?)
             ");
-
             $insert->bind_param("iis", $event_id, $staff_id, $section);
-            $insert->execute();
+
+            if ($insert->execute()) {
+                header("Location: assign_staff.php?id=$event_id&section=$section");
+                exit();
+            } else {
+                $msg = "Failed to assign staff.";
+            }
+
             $insert->close();
-
-            header("Location: assign_staff.php?id=" . $event_id);
-            exit();
-
-        } else {
-            $msg = "This section already has an assigned staff.";
         }
     }
 }
@@ -122,19 +143,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <div class="alert alert-danger"><?= $msg ?></div>
 <?php } ?>
 
+<form method="GET" class="mb-3">
+    <input type="hidden" name="id" value="<?= $event_id ?>">
+
+    <label>Select Section</label>
+    <select name="section" class="form-control" onchange="this.form.submit()">
+        <option value="">-- Select Section --</option>
+
+        <?php foreach ($sectionFilterMap as $key => $val) { ?>
+            <option value="<?= $key ?>" <?= $selected_section === $key ? 'selected' : '' ?>>
+                <?= ucwords(str_replace('_', ' ', $key)) ?>
+            </option>
+        <?php } ?>
+    </select>
+</form>
+
 <form method="POST">
 
-    <div class="mb-3">
-        <label>Select Section</label>
-        <select name="section" class="form-control" required>
-            <option value="event_manager">Event Manager</option>
-            <option value="registration">Registration</option>
-            <option value="security">Security</option>
-            <option value="decoration">Decoration</option>
-            <option value="logistics">Logistics</option>
-            <option value="technical">Technical Support</option>
-        </select>
-    </div>
+    <input type="hidden" name="section" value="<?= htmlspecialchars($selected_section) ?>">
 
     <div class="mb-3">
         <label>Select Employee</label>
@@ -142,7 +168,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <select name="staff_id" class="form-control" required>
             <option value="">-- Select Staff --</option>
 
-            <?php while ($s = mysqli_fetch_assoc($staffList)) { ?>
+            <?php while ($s = $staffList->fetch_assoc()) { ?>
                 <option value="<?= $s['staff_id'] ?>">
                     <?= htmlspecialchars($s['name']) ?>
                     - <?= htmlspecialchars($s['specialization'] ?? 'No Specialization') ?>
@@ -161,64 +187,40 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <h4>Assigned Staff</h4>
 
-<div class="table-responsive mt-3">
+<table class="table table-striped mt-3">
 
-<table class="table table-striped table-hover align-middle">
+<thead>
+<tr>
+    <th>Section</th>
+    <th>Staff</th>
+    <th>Specialization</th>
+    <th>Assigned At</th>
+    <th>Action</th>
+</tr>
+</thead>
 
-    <thead class="table-dark">
-        <tr>
-            <th>Section</th>
-            <th>Staff Name</th>
-            <th>Specialization</th>
-            <th>Assigned At</th>
-            <th>Action</th>
-        </tr>
-    </thead>
+<tbody>
 
-    <tbody>
+<?php while ($a = $assignedStaff->fetch_assoc()) { ?>
 
-    <?php if (mysqli_num_rows($assignedStaff) > 0) { ?>
+<tr>
+    <td><span class="badge bg-primary"><?= $a['section'] ?></span></td>
+    <td><?= htmlspecialchars($a['name']) ?></td>
+    <td><?= htmlspecialchars($a['specialization'] ?? 'N/A') ?></td>
+    <td><?= $a['assigned_at'] ?></td>
+    <td>
+        <a href="?id=<?= $event_id ?>&unassign=<?= $a['assignment_id'] ?>&section=<?= $selected_section ?>"
+           class="btn btn-danger btn-sm"
+           onclick="return confirm('Unassign?')">
+            Unassign
+        </a>
+    </td>
+</tr>
 
-        <?php while ($a = mysqli_fetch_assoc($assignedStaff)) { ?>
+<?php } ?>
 
-            <tr>
-                <td>
-                    <span class="badge bg-primary">
-                        <?= htmlspecialchars($a['section']) ?>
-                    </span>
-                </td>
-
-                <td><?= htmlspecialchars($a['name']) ?></td>
-
-                <td><?= htmlspecialchars($a['specialization'] ?? 'No Specialization') ?></td>
-
-                <td><?= date("M d, Y h:i A", strtotime($a['assigned_at'])) ?></td>
-
-                <td>
-                    <a href="?id=<?= $event_id ?>&unassign=<?= $a['assignment_id'] ?>"
-                       class="btn btn-danger btn-sm"
-                       onclick="return confirm('Unassign this staff?')">
-                        Unassign
-                    </a>
-                </td>
-            </tr>
-
-        <?php } ?>
-
-    <?php } else { ?>
-
-        <tr>
-            <td colspan="5" class="text-center text-muted">
-                No staff assigned yet
-            </td>
-        </tr>
-
-    <?php } ?>
-
-    </tbody>
+</tbody>
 </table>
-
-</div>
 
 </body>
 </html>
