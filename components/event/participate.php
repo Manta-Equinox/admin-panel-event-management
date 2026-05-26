@@ -6,7 +6,7 @@ if (!isset($_SESSION['Aname'])) {
     exit();
 }
 
-require_once __DIR__ . "/../../connect.php";
+require_once __DIR__ . "/../../api/config/db.php";
 
 $event_id = isset($_GET['event_id']) ? (int) $_GET['event_id'] : 0;
 $user_id  = isset($_SESSION['Aid']) ? (int) $_SESSION['Aid'] : 0;

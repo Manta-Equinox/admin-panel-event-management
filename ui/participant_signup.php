@@ -2,7 +2,7 @@
 session_start();
 
 if (isset($_SESSION["Pid"])) {
-    header("Location: components/public/public_event.php");
+    header("Location: ../components/public/public_event.php");
     exit();
 }
 
@@ -14,27 +14,32 @@ $success = $_GET['success'] ?? '';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Sign Up</title>
+    <title>Participant Sign Up</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
-        body {
+        * {
             margin: 0;
-            font-family: Arial;
-            background: linear-gradient(135deg, #5469d4, #6c7ae0);
-            height: 100vh;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            background: #ffffff;
         }
 
         .card {
-            background: white;
             width: 100%;
-            max-width: 420px;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 450px;
+            padding: 40px;
+            border-radius: 6px;
+            background: #fff;
+            box-shadow: rgba(60, 66, 87, 0.12) 0px 7px 14px;
         }
 
         h2 {
@@ -47,19 +52,19 @@ $success = $_GET['success'] ?? '';
             padding: 12px;
             margin: 8px 0;
             border: 1px solid #ddd;
-            border-radius: 8px;
+            border-radius: 4px;
         }
 
         button {
             width: 100%;
             padding: 12px;
-            background: #5469d4;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
             margin-top: 10px;
+            background: #5469d4;
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
         }
 
         button:hover {
@@ -68,17 +73,12 @@ $success = $_GET['success'] ?? '';
 
         .msg {
             text-align: center;
-            font-size: 14px;
+            font-size: 13px;
             margin-bottom: 10px;
         }
 
-        .error {
-            color: red;
-        }
-
-        .success {
-            color: green;
-        }
+        .error { color: red; }
+        .success { color: green; }
 
         .footer {
             text-align: center;
@@ -89,7 +89,7 @@ $success = $_GET['success'] ?? '';
         .footer a {
             color: #5469d4;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -98,17 +98,17 @@ $success = $_GET['success'] ?? '';
 
 <div class="card">
 
-    <h2>Create Account</h2>
+    <h2>Participant Sign Up</h2>
 
     <?php if ($error): ?>
         <div class="msg error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <?php if ($success): ?>
-        <div class="msg success">Account created successfully. You can login now.</div>
+    <?php if ($success === 'registered'): ?>
+        <div class="msg success">Account created successfully. Please login.</div>
     <?php endif; ?>
 
-    <form method="POST" action="participant_signup_handler.php">
+    <form method="POST" action="../api/auth/participant_signup.php">
 
         <input type="text" name="name" placeholder="Full Name" required>
 
@@ -118,12 +118,13 @@ $success = $_GET['success'] ?? '';
 
         <input type="password" name="confirm_password" placeholder="Confirm Password" required>
 
-        <button type="submit">Sign Up</button>
+        <button type="submit">Create Account</button>
 
     </form>
 
     <div class="footer">
-        Already have an account? <a href="index.php">Login</a>
+        Already have an account?
+        <a href="participants_login.php">Login</a>
     </div>
 
 </div>

@@ -11,7 +11,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-require_once __DIR__ . "/connect.php";
+require_once __DIR__ ."/api/config/db.php";
 ?>
 
 <!DOCTYPE html>

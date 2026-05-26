@@ -6,8 +6,7 @@ if (!isset($_SESSION['Aname'])) {
     exit();
 }
 
-require_once __DIR__ . "/connect.php";
-
+require_once __DIR__ . "/connect.php";require_once __DIR__ ."/api/config/db.php";
 $role = $_SESSION['role'] ?? '';
 $user_id = (int)($_SESSION['Aid'] ?? 0);
 ?>

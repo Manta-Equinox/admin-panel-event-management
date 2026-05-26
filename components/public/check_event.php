@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . "/../../connect.php";
+require_once __DIR__ . "/../../api/config/db.php";
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("Invalid event ID.");

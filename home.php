@@ -12,7 +12,7 @@ if ($_SESSION['role'] === 'participant') {
     exit();
 }
 
-require_once __DIR__ . "/connect.php";
+require_once __DIR__ ."/api/config/db.php";
 
 $q1 = "SELECT COUNT(*) AS e FROM events";
 $q2 = "SELECT COUNT(*) AS p FROM event_participants";

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . "/connect.php";
+require_once __DIR__ . "/api/config/db.php";
 
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../../index.php");

@@ -1,8 +1,7 @@
 <?php
 session_start();
 
-require_once __DIR__ . "/../../connect.php";
-
+require_once __DIR__ . "/../../api/config/db.php";
 if (!isset($_SESSION['Aname'])) {
     header("Location: ../../index.php");
     exit();
@@ -13,7 +12,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-// fetch specializations from DB
 $specResult = $dbc->query("SELECT * FROM specializations");
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -28,7 +26,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $fmsg = "Please fill all required fields.";
     } else {
 
-        // role rules
         if ($role === 'admin') {
             $spec_id = null;
         }
@@ -37,7 +34,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $fmsg = "Employees must select a specialization.";
         } else {
 
-            // check duplicate email
             $check = $dbc->prepare("SELECT staff_id FROM staff_users WHERE email = ?");
             $check->bind_param("s", $email);
             $check->execute();
@@ -47,7 +43,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $fmsg = "Email already exists.";
             } else {
 
-                // hash password
                 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
                 $stmt = $dbc->prepare("

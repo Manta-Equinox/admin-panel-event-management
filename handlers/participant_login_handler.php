@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . "/../config/db.php";
+require_once __DIR__ . "/../api/config/db.php";
 
 $email = trim($_POST['email'] ?? '');
 $password = $_POST['password'] ?? '';
@@ -18,7 +18,8 @@ $stmt = $dbc->prepare("
 ");
 
 if (!$stmt) {
-    die("Database error: " . $dbc->error);
+    header("Location: ../../ui/participants_login.php?error=db");
+    exit();
 }
 
 $stmt->bind_param("s", $email);
@@ -32,9 +33,9 @@ if (!$user || !password_verify($password, $user['password'])) {
     exit();
 }
 
-$_SESSION['Pid'] = $user['participant_id'];
-$_SESSION['Pname'] = $user['name'];
-$_SESSION['role'] = 'participant';
+$_SESSION["Pid"] = $user["participant_id"];
+$_SESSION["Pname"] = $user["name"];
+$_SESSION["role"] = "participant";
 
 header("Location: ../../components/public/public_event.php");
 exit();

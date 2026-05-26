@@ -18,6 +18,7 @@ if ($email === '' || $password === '') {
 }
 
 session_unset();
+session_regenerate_id(true);
 
 $staff_url = "http://localhost/api/auth/staff_login.php";
 

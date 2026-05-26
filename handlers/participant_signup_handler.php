@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . "/../config/db.php";
+require_once __DIR__ . "/../api/config/db.php";
 
 $name = trim($_POST['name'] ?? '');
 $email = trim($_POST['email'] ?? '');
@@ -9,11 +9,6 @@ $confirm = $_POST['confirm_password'] ?? '';
 
 if ($name === '' || $email === '' || $password === '' || $confirm === '') {
     header("Location: ../../ui/participant_signup.php?error=empty");
-    exit();
-}
-
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    header("Location: ../../ui/participant_signup.php?error=invalid_email");
     exit();
 }
 
@@ -35,9 +30,9 @@ if (!$stmt) {
 
 $stmt->bind_param("s", $email);
 $stmt->execute();
-$result = $stmt->get_result();
+$res = $stmt->get_result();
 
-if ($result->num_rows > 0) {
+if ($res->num_rows > 0) {
     header("Location: ../../ui/participant_signup.php?error=exists");
     exit();
 }
