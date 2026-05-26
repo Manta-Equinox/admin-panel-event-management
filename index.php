@@ -358,7 +358,7 @@ if (isset($_SESSION["Aname"])) {
                 <div class="formbg-outer">
                     <div class="formbg">
                         <div class="formbg-inner padding-horizontal--48">
-                            <span class="padding-bottom--15">Login to Admin Desk</span>
+                            <span class="padding-bottom--15">Login</span>
                             <form id="stripe-login" method="POST" action="login.php">
                                 <div class="field padding-bottom--24">
                                     <label for="email">E mail</label>
@@ -367,37 +367,18 @@ if (isset($_SESSION["Aname"])) {
                                 <div class="field padding-bottom--24">
                                     <div class="grid--50-50">
                                         <label for="password">Password</label>
-                                        <div class="reset-pass">
-                                            <a href="#">Forgot your password?</a>
-                                        </div>
                                     </div>
                                     <input type="password" name="password">
                                 </div>
                                 <div class="field padding-bottom--24">
                                     <input type="submit" name="submit" value="Continue">
                                 </div>
-                            </form>
-                           <div style="text-align:center; margin-top:15px;">
-
-                                <div style="font-size:13px; color:#666; margin-bottom:8px;">
-                                    Access without login
-                                </div>
-
-                                <a href="/components/public/public_event.php" class="public-btn">
-                                    View Public Events
-                                </a>
-
-                                <div style="margin-top:20px;">
-                                    <div style="font-size:13px; color:#666; margin-bottom:8px;">
-                                        No account yet?
-                                    </div>
-
-                                    <a href="participant_signup.php" class="public-btn">
-                                        Sign Up as Participant
+                               <div style="text-align:center; margin-top:10px;">
+                                    <a href="participants_login.php" style="color:#5469d4; font-weight:600; text-decoration:none;">
+                                        I'm a participant
                                     </a>
                                 </div>
-
-                            </div>
+                            </form>
                         </div>
                     </div>
                 </div>

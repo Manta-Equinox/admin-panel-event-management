@@ -1,6 +1,5 @@
 <?php
 session_start();
-require_once __DIR__ . '/connect.php';
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     header("Location: index.php");
@@ -18,49 +17,54 @@ if ($email === '' || $password === '') {
     exit();
 }
 
-$stmt = $dbc->prepare("
-    SELECT staff_id, email, password, role 
-    FROM staff_users 
-    WHERE email = ? 
-    LIMIT 1
-");
+session_unset();
 
-if (!$stmt) {
-    die("Database error: " . $dbc->error);
+$staff_url = "http://localhost/api/auth/staff_login.php";
+
+$data = http_build_query([
+    "email" => $email,
+    "password" => $password
+]);
+
+$options = [
+    "http" => [
+        "header"  => "Content-type: application/x-www-form-urlencoded",
+        "method"  => "POST",
+        "content" => $data
+    ]
+];
+
+$response = file_get_contents($staff_url, false, stream_context_create($options));
+$result = json_decode($response, true);
+
+if ($result && $result["status"] === "success") {
+
+    $_SESSION['Aid']   = $result["data"]["id"];
+    $_SESSION['Aname'] = $result["data"]["email"];
+    $_SESSION['role']  = $result["role"];
+
+    header("Location: home.php");
+    exit();
 }
 
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$result = $stmt->get_result();
+$participant_url = "http://localhost/api/auth/participant_login.php";
 
-if ($result && $result->num_rows === 1) {
+$response2 = file_get_contents($participant_url, false, stream_context_create($options));
+$result2 = json_decode($response2, true);
 
-    $row = $result->fetch_assoc();
+if ($result2 && $result2["status"] === "success") {
 
-    if (password_verify($password, $row['password'])) {
+    $_SESSION['Pid']   = $result2["data"]["id"];
+    $_SESSION['Pname'] = $result2["data"]["name"];
+    $_SESSION['role']  = "participant";
 
-        $_SESSION['Aname'] = $row['email'];
-        $_SESSION['Aid']   = $row['staff_id'];
-        $_SESSION['role']  = $row['role'];
-
-        header("Location: home.php");
-        exit();
-
-    } else {
-        echo "<script>
-            alert('Invalid Credentials');
-            window.location.href='index.php';
-        </script>";
-        exit();
-    }
-
-} else {
-    echo "<script>
-        alert('Invalid Credentials');
-        window.location.href='index.php';
-    </script>";
+    header("Location: components/public/public_event.php");
+    exit();
 }
 
-$stmt->close();
-$dbc->close();
+echo "<script>
+    alert('Invalid Credentials');
+    window.location.href='index.php';
+</script>";
+exit();
 ?>

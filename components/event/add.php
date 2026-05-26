@@ -24,9 +24,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $start_time   = trim($_POST['start_time'] ?? '');
     $end_time     = trim($_POST['end_time'] ?? '');
     $location     = trim($_POST['location'] ?? '');
-    $capacity     = trim($_POST['capacity'] ?? 0);
-    $payment_req  = isset($_POST['payment_required']) ? 1 : 0;
-    $price        = trim($_POST['price'] ?? 0.00);
+    $capacity     = (int)($_POST['capacity'] ?? 0);
 
     if (
         $title === '' ||
@@ -41,12 +39,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $stmt = $dbc->prepare("
             INSERT INTO events 
-            (title, description, event_type, event_date, start_time, end_time, location, created_by, payment_required, price, status, capacity)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            (title, description, event_type, event_date, start_time, end_time, location, created_by, capacity, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ");
 
         $stmt->bind_param(
-            "sssssssiiii",
+            "sssssssii",
             $title,
             $desc,
             $type,
@@ -55,8 +53,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $end_time,
             $location,
             $created_by,
-            $payment_req,
-            $price,
             $capacity
         );
 
@@ -120,14 +116,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <input type="text" name="location" class="form-control mb-2" placeholder="Location" required>
 
-        <input type="number" name="capacity" class="form-control mb-2" placeholder="Capacity">
-
-        <div class="form-check mb-2">
-            <input type="checkbox" name="payment_required" class="form-check-input">
-            <label class="form-check-label">Payment Required</label>
-        </div>
-
-        <input type="number" step="0.01" name="price" class="form-control mb-3" placeholder="Price">
+        <input type="number" name="capacity" class="form-control mb-3" placeholder="Capacity">
 
         <button type="submit" class="btn btn-primary">
             <i class='bx bx-plus'></i> Create Event

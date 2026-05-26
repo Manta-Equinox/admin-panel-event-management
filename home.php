@@ -1,8 +1,14 @@
 <?php
 session_start();
 
-if (!isset($_SESSION['Aname'])) {
-    header('location:index.php');
+
+if (!isset($_SESSION['role']) || !isset($_SESSION['Aname'])) {
+    header('Location: index.php');
+    exit();
+}
+
+if ($_SESSION['role'] === 'participant') {
+    header("Location: components/public/public_event.php");
     exit();
 }
 
