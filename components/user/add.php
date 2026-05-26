@@ -2,6 +2,7 @@
 session_start();
 
 require_once __DIR__ . "/../../api/config/db.php";
+
 if (!isset($_SESSION['Aname'])) {
     header("Location: ../../index.php");
     exit();
@@ -13,59 +14,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 }
 
 $specResult = $dbc->query("SELECT * FROM specializations");
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $name     = trim($_POST['name'] ?? '');
-    $email    = trim($_POST['email'] ?? '');
-    $password = trim($_POST['password'] ?? '');
-    $role     = trim($_POST['role'] ?? '');
-    $spec_id  = trim($_POST['specialization_id'] ?? '');
-
-    if ($name === '' || $email === '' || $password === '' || $role === '') {
-        $fmsg = "Please fill all required fields.";
-    } else {
-
-        if ($role === 'admin') {
-            $spec_id = null;
-        }
-
-        if ($role === 'employee' && $spec_id === '') {
-            $fmsg = "Employees must select a specialization.";
-        } else {
-
-            $check = $dbc->prepare("SELECT staff_id FROM staff_users WHERE email = ?");
-            $check->bind_param("s", $email);
-            $check->execute();
-            $check->store_result();
-
-            if ($check->num_rows > 0) {
-                $fmsg = "Email already exists.";
-            } else {
-
-                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-                $stmt = $dbc->prepare("
-                    INSERT INTO staff_users (name, email, password, role, specialization_id)
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-
-                $stmt->bind_param("ssssi", $name, $email, $hashedPassword, $role, $spec_id);
-
-                if ($stmt->execute()) {
-                    header("Location: ../../user.php");
-                    exit();
-                } else {
-                    $fmsg = "Insert failed: " . $stmt->error;
-                }
-
-                $stmt->close();
-            }
-
-            $check->close();
-        }
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -88,19 +36,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <section class="home-section">
 
-<div class="container" style="padding-top: 120px;">
+<div class="container" style="padding-top: 120px; max-width: 700px;">
 
     <h4 class="fw-bold mb-3">
         <i class='bx bx-user-plus'></i> Add New User
     </h4>
 
-    <?php if (isset($fmsg)) { ?>
-        <div class="alert alert-danger">
-            <?php echo $fmsg; ?>
-        </div>
-    <?php } ?>
+    <div id="alertBox"></div>
 
-    <form method="post">
+    <form id="userForm">
 
         <div class="form-group mb-2">
             <label>Name</label>
@@ -151,22 +95,76 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </section>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+const roleSelect = document.getElementById('roleSelect');
+const specSelect = document.getElementById('specSelect');
+const form = document.getElementById('userForm');
+const alertBox = document.getElementById('alertBox');
 
-    const roleSelect = document.getElementById('roleSelect');
-    const specSelect = document.getElementById('specSelect');
-
-    function toggleSpec() {
-        if (roleSelect.value === 'admin') {
-            specSelect.value = '';
-            specSelect.disabled = true;
-        } else {
-            specSelect.disabled = false;
-        }
+// disable specialization for admin
+function toggleSpec() {
+    if (roleSelect.value === 'admin') {
+        specSelect.value = '';
+        specSelect.disabled = true;
+    } else {
+        specSelect.disabled = false;
     }
+}
 
-    roleSelect.addEventListener('change', toggleSpec);
-    toggleSpec();
+roleSelect.addEventListener('change', toggleSpec);
+toggleSpec();
+
+// AJAX submit
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+        name: form.name.value,
+        email: form.email.value,
+        password: form.password.value,
+        role: form.role.value,
+        specialization_id: form.specialization_id.value
+    };
+
+    try {
+        const res = await fetch("../../api/user/add.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+
+        if (result.success) {
+            alertBox.innerHTML = `
+                <div class="alert alert-success">
+                    ${result.message}
+                </div>
+            `;
+
+            form.reset();
+            toggleSpec();
+
+            setTimeout(() => {
+                window.location.href = "../../user.php";
+            }, 800);
+
+        } else {
+            alertBox.innerHTML = `
+                <div class="alert alert-danger">
+                    ${result.error}
+                </div>
+            `;
+        }
+
+    } catch (err) {
+        alertBox.innerHTML = `
+            <div class="alert alert-danger">
+                Server error. Please try again.
+            </div>
+        `;
+    }
 });
 </script>
 

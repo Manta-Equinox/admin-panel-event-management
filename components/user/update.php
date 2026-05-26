@@ -19,7 +19,6 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $id = intval($_GET['id']);
 
-// fetch user
 $stmt = $dbc->prepare("SELECT * FROM staff_users WHERE staff_id = ?");
 $stmt->bind_param("i", $id);
 $stmt->execute();
@@ -30,94 +29,7 @@ if (!$r) {
     die("User not found.");
 }
 
-// fetch specializations
 $specResult = $dbc->query("SELECT * FROM specializations");
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $name  = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $role  = trim($_POST['role'] ?? '');
-    $spec_id = $_POST['specialization_id'] ?? '';
-    $password = trim($_POST['password'] ?? '');
-
-    if ($name === '' || $email === '' || $role === '') {
-        $fmsg = "Please fill all required fields.";
-    } else {
-
-        // check duplicate email
-        $check = $dbc->prepare("SELECT staff_id FROM staff_users WHERE email = ? AND staff_id != ?");
-        $check->bind_param("si", $email, $id);
-        $check->execute();
-        $check->store_result();
-
-        if ($check->num_rows > 0) {
-            $fmsg = "Email already exists.";
-        } else {
-
-            // role rules
-            if ($role === 'admin') {
-                $spec_id = null;
-            }
-
-            if ($role === 'employee' && $spec_id === '') {
-                $fmsg = "Employees must select a specialization.";
-            } else {
-
-                // update WITH password
-                if ($password !== '') {
-
-                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-                    $update = $dbc->prepare("
-                        UPDATE staff_users
-                        SET name = ?, email = ?, role = ?, specialization_id = ?, password = ?
-                        WHERE staff_id = ?
-                    ");
-
-                    $update->bind_param(
-                        "sssssi",
-                        $name,
-                        $email,
-                        $role,
-                        $spec_id,
-                        $hashedPassword,
-                        $id
-                    );
-
-                } else {
-
-                    // update WITHOUT password
-                    $update = $dbc->prepare("
-                        UPDATE staff_users
-                        SET name = ?, email = ?, role = ?, specialization_id = ?
-                        WHERE staff_id = ?
-                    ");
-
-                    $update->bind_param(
-                        "ssssi",
-                        $name,
-                        $email,
-                        $role,
-                        $spec_id,
-                        $id
-                    );
-                }
-
-                if ($update->execute()) {
-                    header("Location: ../../user.php");
-                    exit();
-                } else {
-                    $fmsg = "Failed to update user: " . $update->error;
-                }
-
-                $update->close();
-            }
-        }
-
-        $check->close();
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -125,6 +37,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <head>
     <title>Enigma | Update User</title>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -139,17 +52,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <section class="home-section">
 
-<div class="container" style="padding-top: 120px;">
+<div class="container" style="padding-top: 120px; max-width: 700px;">
 
     <h4 class="fw-bold mb-3">Update User</h4>
 
-    <?php if (isset($fmsg)) { ?>
-        <div class="alert alert-danger">
-            <?= $fmsg ?>
-        </div>
-    <?php } ?>
+    <div id="alertBox"></div>
 
-    <form method="post">
+    <form id="updateForm">
+
+        <input type="hidden" name="id" value="<?= $id ?>">
 
         <div class="form-group mb-2">
             <label>Name</label>
@@ -174,7 +85,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <div class="form-group mb-2">
             <label>Specialization</label>
             <select class="form-control" name="specialization_id" id="specSelect">
-
                 <option value="">-- Select Specialization --</option>
 
                 <?php while ($s = $specResult->fetch_assoc()) { ?>
@@ -203,22 +113,72 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </section>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+const roleSelect = document.getElementById('roleSelect');
+const specSelect = document.getElementById('specSelect');
+const form = document.getElementById('updateForm');
+const alertBox = document.getElementById('alertBox');
 
-    const roleSelect = document.getElementById('roleSelect');
-    const specSelect = document.getElementById('specSelect');
-
-    function toggleSpec() {
-        if (roleSelect.value === 'admin') {
-            specSelect.value = '';
-            specSelect.disabled = true;
-        } else {
-            specSelect.disabled = false;
-        }
+function toggleSpec() {
+    if (roleSelect.value === 'admin') {
+        specSelect.value = '';
+        specSelect.disabled = true;
+    } else {
+        specSelect.disabled = false;
     }
+}
 
-    roleSelect.addEventListener('change', toggleSpec);
-    toggleSpec();
+roleSelect.addEventListener('change', toggleSpec);
+toggleSpec();
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+        id: form.id.value,
+        name: form.name.value,
+        email: form.email.value,
+        role: form.role.value,
+        specialization_id: form.specialization_id.value,
+        password: form.password.value
+    };
+
+    try {
+        const res = await fetch("../../api/user/update.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+
+        if (result.success) {
+            alertBox.innerHTML = `
+                <div class="alert alert-success">
+                    User updated successfully
+                </div>
+            `;
+
+            setTimeout(() => {
+                window.location.href = "../../user.php";
+            }, 800);
+
+        } else {
+            alertBox.innerHTML = `
+                <div class="alert alert-danger">
+                    ${result.error}
+                </div>
+            `;
+        }
+
+    } catch (err) {
+        alertBox.innerHTML = `
+            <div class="alert alert-danger">
+                Server error
+            </div>
+        `;
+    }
 });
 </script>
 

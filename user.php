@@ -10,8 +10,6 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header('location: home.php');
     exit();
 }
-
-require_once __DIR__ ."/api/config/db.php";
 ?>
 
 <!DOCTYPE html>
@@ -61,69 +59,14 @@ require_once __DIR__ ."/api/config/db.php";
                 </tr>
             </thead>
 
-            <tbody>
-
-            <?php
-            // JOIN specialization table (IMPORTANT FIX)
-            $query = "
-                SELECT staff_users.*,
-                       specializations.name AS spec_name
-                FROM staff_users
-                LEFT JOIN specializations
-                ON staff_users.specialization_id = specializations.id
-            ";
-
-            $result = mysqli_query($dbc, $query);
-
-            if (!$result) {
-                die("Query Error: " . mysqli_error($dbc));
-            }
-
-            if (mysqli_num_rows($result) > 0) {
-
-                while ($row = mysqli_fetch_assoc($result)) {
-
-                    $id    = $row['staff_id'];
-                    $name  = htmlspecialchars($row['name']);
-                    $email = htmlspecialchars($row['email']);
-                    $role  = htmlspecialchars($row['role']);
-
-                    $spec = !empty($row['spec_name']) ? htmlspecialchars($row['spec_name']) : '-';
-
-                    echo "
-                    <tr>
-                        <td>{$id}</td>
-                        <td>{$name}</td>
-                        <td>{$email}</td>
-                        <td>{$role}</td>
-                        <td>{$spec}</td>
-
-                        <td>
-                            <a href='./components/user/update.php?id={$id}' class='btn btn-info btn-sm'>
-                                <i class='bx bx-edit'></i> Edit
-                            </a>
-
-                            <a href='./components/user/delete.php?id={$id}'
-                               class='btn btn-danger btn-sm'
-                               onclick=\"return confirm('Delete this user?');\">
-                                <i class='bx bx-trash'></i> Delete
-                            </a>
-                        </td>
-                    </tr>
-                    ";
-                }
-
-            } else {
-                echo "
+            <tbody id="userTable">
                 <tr>
-                    <td colspan='6' class='text-center py-4'>
-                        No users found
+                    <td colspan="6" class="text-center py-4">
+                        Loading users...
                     </td>
-                </tr>";
-            }
-            ?>
-
+                </tr>
             </tbody>
+
         </table>
 
     </div>
@@ -132,6 +75,88 @@ require_once __DIR__ ."/api/config/db.php";
 </section>
 
 <?php include_once('./templates/footer.php'); ?>
+
+<script>
+async function loadUsers() {
+    try {
+        const res = await fetch("./api/user/list.php");
+        const data = await res.json();
+
+        let html = "";
+
+        if (!Array.isArray(data) || data.length === 0) {
+            html = `
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        No users found
+                    </td>
+                </tr>
+            `;
+        } else {
+            data.forEach(u => {
+                html += `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td>${u.name}</td>
+                        <td>${u.email}</td>
+                        <td>${u.role}</td>
+                        <td>${u.specialization ?? '-'}</td>
+                        <td>
+                            <a href="./components/user/update.php?id=${u.id}"
+                               class="btn btn-info btn-sm">
+                                <i class='bx bx-edit'></i> Edit
+                            </a>
+
+                            <button class="btn btn-danger btn-sm"
+                                onclick="deleteUser(${u.id})">
+                                <i class='bx bx-trash'></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById("userTable").innerHTML = html;
+
+    } catch (err) {
+        document.getElementById("userTable").innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-danger py-4">
+                    Failed to load users
+                </td>
+            </tr>
+        `;
+    }
+}
+
+async function deleteUser(id) {
+    if (!confirm("Delete this user?")) return;
+
+    try {
+        const res = await fetch("./api/user/delete.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ id })
+        });
+
+        const result = await res.json();
+
+        if (result.success) {
+            loadUsers();
+        } else {
+            alert(result.error || "Delete failed");
+        }
+
+    } catch (err) {
+        alert("Server error");
+    }
+}
+
+loadUsers();
+</script>
 
 </body>
 </html>

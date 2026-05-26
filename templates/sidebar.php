@@ -81,10 +81,6 @@ $name = $_SESSION['Aname'] ?? $_SESSION['Pname'] ?? 'Guest';
             </span>
         </div>
 
-        <div class="search-box">
-            <input type="text" placeholder="Search...">
-            <i class='bx bx-search'></i>
-        </div>
 
         <div class="profile-details">
             <img src="https://t4.ftcdn.net/jpg/00/97/00/09/360_F_97000908_wwH2goIihwrMoeV9QF3BW6HtpsVFaNVM.jpg">
