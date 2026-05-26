@@ -16,7 +16,7 @@ $name = $_SESSION['Aname'] ?? $_SESSION['Pname'] ?? 'Guest';
         <?php if ($role !== 'participant') { ?>
         <li>
             <a href="/home.php"
-               class="<?= basename($_SERVER['PHP_SELF']) == 'home.php' ? 'active' : '' ?>">
+               class="<?= strpos($_SERVER['PHP_SELF'], 'home.php') !== false ? 'active' : '' ?>">
                 <i class='bx bx-grid-alt'></i>
                 <span class="links_name">Dashboard</span>
             </a>
@@ -26,7 +26,7 @@ $name = $_SESSION['Aname'] ?? $_SESSION['Pname'] ?? 'Guest';
         <?php if ($role === 'admin') { ?>
         <li>
             <a href="/user.php"
-               class="<?= basename($_SERVER['PHP_SELF']) == 'user.php' ? 'active' : '' ?>">
+               class="<?= strpos($_SERVER['PHP_SELF'], 'user.php') !== false ? 'active' : '' ?>">
                 <i class='bx bx-box'></i>
                 <span class="links_name">Users</span>
             </a>
@@ -36,32 +36,37 @@ $name = $_SESSION['Aname'] ?? $_SESSION['Pname'] ?? 'Guest';
         <?php if ($role !== 'participant') { ?>
         <li>
             <a href="/events.php"
-               class="<?= basename($_SERVER['PHP_SELF']) == 'events.php' ? 'active' : '' ?>">
+               class="<?= strpos($_SERVER['PHP_SELF'], 'events.php') !== false ? 'active' : '' ?>">
                 <i class='bx bx-list-ul'></i>
                 <span class="links_name">Event List</span>
             </a>
         </li>
         <?php } ?>
 
+        <?php if ($role !== 'participant') { ?>
+        <li>
+            <a href="/ui/attendance/list.php"
+               class="<?= strpos($_SERVER['PHP_SELF'], 'attendance') !== false ? 'active' : '' ?>">
+                <i class='bx bx-time-five'></i>
+                <span class="links_name">Attendance</span>
+            </a>
+        </li>
+        <?php } ?>
+        <li>
+        <a href="/ui/attendance/attendance_scan.php">
+            <i class='bx bx-qr-scan'></i>
+            <span class="links_name">Scan QR</span>
+        </a>
+    </li>
         <?php if ($role === 'participant') { ?>
         <li>
-            <a href="/public_event.php"
-               class="<?= basename($_SERVER['PHP_SELF']) == 'public_event.php' ? 'active' : '' ?>">
+            <a href="/ui/public/public_event.php"
+               class="<?= strpos($_SERVER['PHP_SELF'], 'public_event.php') !== false ? 'active' : '' ?>">
                 <i class='bx bx-calendar'></i>
                 <span class="links_name">Events</span>
             </a>
         </li>
         <?php } ?>
-
-        <?php if ($role !== 'participant') { ?>
-        <li>
-            <a href="/events.php">
-                <i class='bx bx-pie-chart-alt-2'></i>
-                <span class="links_name">Participants (Select Event)</span>
-            </a>
-        </li>
-        <?php } ?>
-
         <li>
             <a href="/logout.php">
                 <i class='bx bx-log-out'></i>
@@ -80,7 +85,6 @@ $name = $_SESSION['Aname'] ?? $_SESSION['Pname'] ?? 'Guest';
                 <?= ucfirst($role ?? 'User') ?>
             </span>
         </div>
-
 
         <div class="profile-details">
             <img src="https://t4.ftcdn.net/jpg/00/97/00/09/360_F_97000908_wwH2goIihwrMoeV9QF3BW6HtpsVFaNVM.jpg">

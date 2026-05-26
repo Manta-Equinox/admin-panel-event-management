@@ -39,7 +39,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
             <i class='bx bx-user'></i> Users
         </h4>
 
-        <a href="./components/user/add.php" class="btn btn-primary">
+        <a href="./ui/user/add.php" class="btn btn-primary">
             <i class='bx bx-user-plus'></i> Add user
         </a>
     </div>
@@ -102,7 +102,7 @@ async function loadUsers() {
                         <td>${u.role}</td>
                         <td>${u.specialization ?? '-'}</td>
                         <td>
-                            <a href="./components/user/update.php?id=${u.id}"
+                            <a href="./ui/user/update.php?id=${u.id}"
                                class="btn btn-info btn-sm">
                                 <i class='bx bx-edit'></i> Edit
                             </a>

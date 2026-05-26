@@ -2,7 +2,7 @@
 session_start();
 
 if (isset($_SESSION["Pid"])) {
-    header("Location: ../components/public/public_event.php");
+    header("Location: ../ui/public/public_event.php");
     exit();
 }
 

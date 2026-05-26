@@ -6,18 +6,18 @@ header("Content-Type: application/json");
 
 if (!isset($_SESSION['Pid']) || ($_SESSION['role'] ?? '') !== 'participant') {
     echo json_encode([
-        "status" => "error",
+        "success" => false,
         "message" => "Unauthorized"
     ]);
     exit();
 }
 
-$event_id = isset($_POST['event_id']) ? (int)$_POST['event_id'] : 0;
+$event_id = (int)($_POST['event_id'] ?? 0);
 $participant_id = (int)$_SESSION['Pid'];
 
 if ($event_id <= 0) {
     echo json_encode([
-        "status" => "error",
+        "success" => false,
         "message" => "Invalid event ID"
     ]);
     exit();
@@ -30,11 +30,12 @@ $stmt = $dbc->prepare("
 ");
 $stmt->bind_param("i", $event_id);
 $stmt->execute();
+
 $event = $stmt->get_result()->fetch_assoc();
 
 if (!$event) {
     echo json_encode([
-        "status" => "error",
+        "success" => false,
         "message" => "Event not found"
     ]);
     exit();
@@ -42,44 +43,24 @@ if (!$event) {
 
 if ($event['status'] !== 'approved') {
     echo json_encode([
-        "status" => "error",
+        "success" => false,
         "message" => "Event is not available"
     ]);
     exit();
-}
-
-if (strtolower($event['event_type']) === 'private') {
-
-    $check = $dbc->prepare("
-        SELECT 1
-        FROM event_assignments
-        WHERE event_id = ? AND staff_id = ?
-        LIMIT 1
-    ");
-    $check->bind_param("ii", $event_id, $participant_id);
-    $check->execute();
-
-    if ($check->get_result()->num_rows === 0) {
-        echo json_encode([
-            "status" => "error",
-            "message" => "Not allowed for this event"
-        ]);
-        exit();
-    }
 }
 
 $check = $dbc->prepare("
     SELECT 1
     FROM event_participants
     WHERE event_id = ? AND participant_id = ?
-    LIMIT 1
 ");
 $check->bind_param("ii", $event_id, $participant_id);
 $check->execute();
+$check->store_result();
 
-if ($check->get_result()->num_rows > 0) {
+if ($check->num_rows > 0) {
     echo json_encode([
-        "status" => "error",
+        "success" => false,
         "message" => "Already joined"
     ]);
     exit();
@@ -99,7 +80,7 @@ if (!empty($event['capacity'])) {
 
     if ($count >= (int)$event['capacity']) {
         echo json_encode([
-            "status" => "error",
+            "success" => false,
             "message" => "Event is full"
         ]);
         exit();
@@ -110,16 +91,17 @@ $insert = $dbc->prepare("
     INSERT INTO event_participants (event_id, participant_id, status)
     VALUES (?, ?, 'registered')
 ");
+
 $insert->bind_param("ii", $event_id, $participant_id);
 
 if ($insert->execute()) {
     echo json_encode([
-        "status" => "success",
+        "success" => true,
         "message" => "Joined successfully"
     ]);
 } else {
     echo json_encode([
-        "status" => "error",
+        "success" => false,
         "message" => "Failed to join"
     ]);
 }

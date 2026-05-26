@@ -1,60 +1,66 @@
 <?php
 require_once __DIR__ . "/../config/db.php";
+session_start();
+
 header("Content-Type: application/json");
 
-$event_id = $_POST['event_id'] ?? null;
-$participant_id = $_POST['participant_id'] ?? null;
-
-if (!$event_id || !$participant_id) {
+if (!isset($_SESSION['Pid'])) {
     echo json_encode([
-        "status" => "error",
-        "message" => "Missing parameters"
+        "success" => false,
+        "message" => "Unauthorized"
     ]);
-    exit;
+    exit();
 }
 
-$stmt = $dbc->prepare("
-    SELECT token_id
+$event_id = (int)($_POST['event_id'] ?? 0);
+$participant_id = (int)$_SESSION['Pid'];
+
+if ($event_id <= 0) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Invalid event ID"
+    ]);
+    exit();
+}
+
+$check = $dbc->prepare("
+    SELECT qr_code, token
     FROM qr_tokens
     WHERE event_id = ? AND participant_id = ?
+    LIMIT 1
 ");
 
-$stmt->bind_param("ii", $event_id, $participant_id);
-$stmt->execute();
-$res = $stmt->get_result();
+$check->bind_param("ii", $event_id, $participant_id);
+$check->execute();
+$res = $check->get_result()->fetch_assoc();
 
-if ($res->num_rows > 0) {
+if ($res) {
     echo json_encode([
-        "status" => "success",
-        "message" => "QR already exists"
+        "success" => true,
+        "qr" => $res['qr_code']
     ]);
-    exit;
+    exit();
 }
 
 $token = bin2hex(random_bytes(16));
 
-$qrData = json_encode([
-    "event_id" => $event_id,
-    "participant_id" => $participant_id,
-    "token" => $token
-]);
+$qr_code = "http://localhost/enigma/api/qr/view.php?token=" . $token;
 
 $stmt = $dbc->prepare("
-    INSERT INTO qr_tokens (event_id, participant_id, token, qr_code, expires_at)
-    VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 DAY))
+    INSERT INTO qr_tokens (event_id, participant_id, token, qr_code)
+    VALUES (?, ?, ?, ?)
 ");
 
-$stmt->bind_param("iiss", $event_id, $participant_id, $token, $qrData);
+$stmt->bind_param("iiss", $event_id, $participant_id, $token, $qr_code);
 
 if ($stmt->execute()) {
     echo json_encode([
-        "status" => "success",
-        "token" => $token,
-        "qr_data" => $qrData
+        "success" => true,
+        "qr" => $qr_code
     ]);
 } else {
     echo json_encode([
-        "status" => "error",
-        "message" => "Failed to generate QR"
+        "success" => false,
+        "message" => $stmt->error
     ]);
 }

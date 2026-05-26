@@ -37,5 +37,5 @@ $_SESSION["Pid"] = $user["participant_id"];
 $_SESSION["Pname"] = $user["name"];
 $_SESSION["role"] = "participant";
 
-header("Location: ../../components/public/public_event.php");
+header("Location: ../../ui/public/public_event.php");
 exit();

@@ -37,7 +37,7 @@ $role = $_SESSION['role'] ?? '';
         </h4>
 
         <?php if ($role === 'admin' || $role === 'employee') { ?>
-            <a href="./components/event/add.php" class="btn btn-primary">
+            <a href="./ui/event/add.php" class="btn btn-primary">
                 <i class='bx bx-plus'></i> Add Event
             </a>
         <?php } ?>
@@ -52,7 +52,6 @@ $role = $_SESSION['role'] ?? '';
                 <th>ID</th>
                 <th>Name</th>
                 <th>Description</th>
-                <th>Type</th>
                 <th>Location</th>
                 <th>Date</th>
                 <th>Time</th>
@@ -65,7 +64,7 @@ $role = $_SESSION['role'] ?? '';
 
             <tbody id="eventsTable">
                 <tr>
-                    <td colspan="11" class="text-center text-muted">
+                    <td colspan="10" class="text-center text-muted">
                         Loading events...
                     </td>
                 </tr>
@@ -94,7 +93,7 @@ async function loadEvents() {
         if (!events.length) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="text-center text-muted">
+                    <td colspan="10" class="text-center text-muted">
                         No events found
                     </td>
                 </tr>
@@ -112,12 +111,6 @@ async function loadEvents() {
                 <td>${event.event_id}</td>
                 <td>${escapeHtml(event.title)}</td>
                 <td>${escapeHtml(event.description)}</td>
-
-                <td>
-                    <span class="badge bg-primary">
-                        ${event.event_type}
-                    </span>
-                </td>
 
                 <td>${escapeHtml(event.location)}</td>
 
@@ -173,7 +166,7 @@ function renderActions(id) {
     }
 
     return `
-        <a href="./components/event/update.php?id=${id}"
+        <a href="./ui/event/update.php?id=${id}"
            class="btn btn-info btn-sm">
             <i class='bx bx-edit'></i>
         </a>
@@ -183,7 +176,7 @@ function renderActions(id) {
             <i class='bx bx-trash'></i>
         </button>
 
-        <a href="./components/event/assign_staff.php?id=${id}"
+        <a href="./ui/event/assign_staff.php?id=${id}"
            class="btn btn-secondary btn-sm">
             <i class='bx bx-user-plus'></i>
         </a>
@@ -201,7 +194,7 @@ async function deleteEvent(id) {
         const data = await res.json();
 
         if (data.status === "success") {
-            loadEvents(); 
+            loadEvents();
         } else {
             alert(data.message || "Delete failed");
         }

@@ -8,25 +8,32 @@ if (!$token) {
     exit("Missing token");
 }
 
+/* Get QR record */
 $stmt = $dbc->prepare("
-    SELECT event_id, participant_id
+    SELECT qr_code, expires_at
     FROM qr_tokens
     WHERE token = ?
     LIMIT 1
 ");
+
 $stmt->bind_param("s", $token);
 $stmt->execute();
 $data = $stmt->get_result()->fetch_assoc();
 
 if (!$data) {
     http_response_code(404);
-    exit("Invalid token");
+    exit("Invalid QR");
 }
 
-$qrData = $token;
+if (strtotime($data['expires_at']) < time()) {
+    http_response_code(410);
+    exit("QR expired");
+}
 
-$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrData);
+$qrData = $data['qr_code'];
 
 header("Content-Type: image/png");
-readfile($qrUrl);
+
+readfile("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrData));
+
 exit();

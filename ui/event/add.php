@@ -47,11 +47,6 @@ if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['admin', 'employe
 
         <textarea name="description" class="form-control mb-2" placeholder="Description" required></textarea>
 
-        <select name="event_type" class="form-control mb-2">
-            <option value="public">Public</option>
-            <option value="private">Private</option>
-        </select>
-
         <input type="date" name="event_date" class="form-control mb-2" required>
 
         <input type="time" name="start_time" class="form-control mb-2" required>
