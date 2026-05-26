@@ -1,24 +1,40 @@
 <?php
-session_start();
 require_once __DIR__ . "/../config/db.php";
+
+header("Content-Type: application/json");
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Invalid request method"
+    ]);
+    exit();
+}
 
 $email = trim($_POST['email'] ?? '');
 $password = $_POST['password'] ?? '';
 
 if ($email === '' || $password === '') {
-    header("Location: ../../ui/participants_login.php?error=empty");
+    echo json_encode([
+        "status" => "error",
+        "message" => "Missing credentials"
+    ]);
     exit();
 }
 
-$stmt = $dbc->prepare("
-    SELECT participant_id, name, email, password
-    FROM participants
-    WHERE email = ?
-    LIMIT 1
-");
+$sql = "SELECT participant_id, name, email, password
+        FROM participants
+        WHERE email = ?
+        LIMIT 1";
+
+$stmt = $dbc->prepare($sql);
 
 if (!$stmt) {
-    die("Database error: " . $dbc->error);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Database error"
+    ]);
+    exit();
 }
 
 $stmt->bind_param("s", $email);
@@ -28,13 +44,22 @@ $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 
 if (!$user || !password_verify($password, $user['password'])) {
-    header("Location: ../../ui/participants_login.php?error=invalid");
+    echo json_encode([
+        "status" => "error",
+        "message" => "Invalid credentials"
+    ]);
     exit();
 }
 
-$_SESSION['Pid'] = $user['participant_id'];
-$_SESSION['Pname'] = $user['name'];
-$_SESSION['role'] = 'participant';
+echo json_encode([
+    "status" => "success",
+    "data" => [
+        "id" => $user['participant_id'],
+        "name" => $user['name'],
+        "email" => $user['email']
+    ]
+]);
 
-header("Location: ../../components/public/public_event.php");
-exit();
+$stmt->close();
+$dbc->close();
+?>

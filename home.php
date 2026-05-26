@@ -1,18 +1,12 @@
 <?php
 session_start();
 
-
-if (!isset($_SESSION['role']) || !isset($_SESSION['Aname'])) {
+if (!isset($_SESSION['role']) || $_SESSION['role'] === 'participant') {
     header('Location: index.php');
     exit();
 }
 
-if ($_SESSION['role'] === 'participant') {
-    header("Location: components/public/public_event.php");
-    exit();
-}
-
-require_once __DIR__ ."/api/config/db.php";
+require_once __DIR__ . "/api/config/db.php";
 
 $q1 = "SELECT COUNT(*) AS e FROM events";
 $q2 = "SELECT COUNT(*) AS p FROM event_participants";
@@ -86,7 +80,6 @@ mysqli_close($dbc);
 <script src="/assets/js/bootstrap.bundle.min.js"></script>
 
 <?php include_once('./templates/footer.php'); ?>
-
 
 </body>
 </html>

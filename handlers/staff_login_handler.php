@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
-require_once __DIR__ . "/../../api/config/db.php";
+require_once "/var/www/html/api/config/db.php";
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode([
@@ -10,6 +10,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     ]);
     exit();
 }
+
 $email = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
 
@@ -28,6 +29,7 @@ if (!isset($dbc)) {
     ]);
     exit();
 }
+
 $sql = "SELECT staff_id, email, password, role 
         FROM staff_users 
         WHERE email = ? 

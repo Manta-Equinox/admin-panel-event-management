@@ -6,7 +6,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit();
 }
 
-$email = trim($_POST['username'] ?? '');
+$email = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
 
 if ($email === '' || $password === '') {
@@ -48,20 +48,6 @@ if ($result && $result["status"] === "success") {
     exit();
 }
 
-$participant_url = "http://localhost/api/auth/participant_login.php";
-
-$response2 = file_get_contents($participant_url, false, stream_context_create($options));
-$result2 = json_decode($response2, true);
-
-if ($result2 && $result2["status"] === "success") {
-
-    $_SESSION['Pid']   = $result2["data"]["id"];
-    $_SESSION['Pname'] = $result2["data"]["name"];
-    $_SESSION['role']  = "participant";
-
-    header("Location: components/public/public_event.php");
-    exit();
-}
 
 echo "<script>
     alert('Invalid Credentials');

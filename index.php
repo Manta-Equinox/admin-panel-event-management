@@ -279,11 +279,11 @@ if (isset($_SESSION["role"]) && $_SESSION["role"] !== "participant") {
 
                         <form id="stripe-login"
                               method="POST"
-                              action="/handlers/staff_login_handler.php">
+                              action="login.php">
 
                             <div class="field padding-bottom--24">
                                 <label>E mail</label>
-                                <input type="email" name="username" required>
+                                <input type="email" name="email" required>
                             </div>
 
                             <div class="field padding-bottom--24">
@@ -322,4 +322,4 @@ if (isset($_SESSION["role"]) && $_SESSION["role"] !== "participant") {
 </div>
 
 </body>
-</html>
+</html> 

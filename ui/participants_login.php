@@ -179,7 +179,7 @@ $error = $_GET['error'] ?? '';
                 <div class="error">Invalid credentials</div>
             <?php endif; ?>
 
-            <form method="POST" action="../api/auth/participant_login.php">
+          <form method="POST" action="../handlers/participant_login_handler.php">
 
                 <label>Email</label>
                 <input type="email" name="email" required>

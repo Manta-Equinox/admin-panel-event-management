@@ -1,6 +1,15 @@
 <?php
-require_once "../config/db.php";
+require_once __DIR__ . "/../config/db.php";
+
 header("Content-Type: application/json");
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Invalid request method"
+    ]);
+    exit();
+}
 
 $email = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
@@ -10,45 +19,63 @@ if ($email === '' || $password === '') {
         "status" => "error",
         "message" => "Missing credentials"
     ]);
-    exit;
+    exit();
 }
 
-$stmt = $dbc->prepare("
-    SELECT staff_id, email, password, role
-    FROM staff_users
-    WHERE email = ?
-    LIMIT 1
-");
+if (!isset($dbc)) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Database connection failed"
+    ]);
+    exit();
+}
+
+$sql = "SELECT staff_id, email, password, role 
+        FROM staff_users 
+        WHERE email = ? 
+        LIMIT 1";
+
+$stmt = $dbc->prepare($sql);
 
 if (!$stmt) {
     echo json_encode([
         "status" => "error",
-        "message" => "Database error: prepare failed"
+        "message" => "Database prepare failed"
     ]);
-    exit;
+    exit();
 }
 
 $stmt->bind_param("s", $email);
 $stmt->execute();
 $result = $stmt->get_result();
 
-if ($user = $result->fetch_assoc()) {
+if (!$result || $result->num_rows === 0) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "User not found"
+    ]);
+    exit();
+}
 
-    if (password_verify($password, $user['password'])) {
+$user = $result->fetch_assoc();
 
-        echo json_encode([
-            "status" => "success",
-            "role" => $user['role'],
-            "data" => [
-                "id" => $user['staff_id'],
-                "email" => $user['email']
-            ]
-        ]);
-        exit;
-    }
+if (!password_verify($password, $user['password'])) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Invalid credentials"
+    ]);
+    exit();
 }
 
 echo json_encode([
-    "status" => "error",
-    "message" => "Invalid staff credentials"
+    "status" => "success",
+    "role" => $user['role'],
+    "data" => [
+        "id" => $user['staff_id'],
+        "email" => $user['email']
+    ]
 ]);
+
+$stmt->close();
+$dbc->close();
+?>
