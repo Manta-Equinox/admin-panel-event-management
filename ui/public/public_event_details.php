@@ -51,8 +51,6 @@ if ($end <= $start) {
     $end->modify('+1 day');
 }
 
-$isEnded = ($now > $end);
-
 if ($now < $start) {
     $eventStatus = "<span class='badge bg-info'>Upcoming</span>";
 } elseif ($now <= $end) {
@@ -60,6 +58,8 @@ if ($now < $start) {
 } else {
     $eventStatus = "<span class='badge bg-secondary'>Ended</span>";
 }
+
+$isEnded = ($now > $end);
 
 $check = $dbc->prepare("
     SELECT 1
@@ -73,9 +73,28 @@ $already_joined = $check->get_result()->num_rows > 0;
 
 $qrText = "event_id={$event_id}&participant_id={$participant_id}";
 
-$qrImageUrl = $already_joined
-    ? "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrText)
-    : null;
+$qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data="
+    . urlencode($qrText);
+
+$token = null;
+
+$stmtToken = $dbc->prepare("
+    SELECT token
+    FROM qr_tokens
+    WHERE event_id = ? AND participant_id = ?
+    LIMIT 1
+");
+$stmtToken->bind_param("ii", $event_id, $participant_id);
+$stmtToken->execute();
+$tokenRow = $stmtToken->get_result()->fetch_assoc();
+
+if ($tokenRow) {
+    $token = $tokenRow['token'];
+}
+
+$qrDownloadUrl = $token
+    ? "../../api/qr/download_qr.php?token=" . $token
+    : "#";
 ?>
 
 <!DOCTYPE html>
@@ -87,27 +106,55 @@ $qrImageUrl = $already_joined
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
-body { background:#f5f6fa; }
+body {
+    background: #f4f6f9;
+}
 
 .card-box {
-    max-width:600px;
-    margin:50px auto;
-    background:#fff;
-    padding:25px;
-    border-radius:12px;
-    box-shadow:0 8px 20px rgba(0,0,0,0.1);
+    max-width: 700px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+.qr-card {
+    background: #fff;
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    margin-top: 20px;
+}
+
+.qr-title {
+    font-weight: 700;
+}
+
+.qr-subtitle {
+    font-size: 13px;
+    color: gray;
+    margin-bottom: 15px;
 }
 
 .qr-img {
-    width:220px;
-    height:220px;
-    object-fit:contain;
-    border:1px solid #ddd;
-    padding:10px;
-    border-radius:10px;
-    background:#fff;
+    width: 220px;
+    height: 220px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.qr-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
 }
 </style>
+
 </head>
 
 <body>
@@ -126,10 +173,12 @@ body { background:#f5f6fa; }
 
 <?php if (!$already_joined): ?>
 
-    <div class="alert alert-info">You have not joined this event yet.</div>
+    <div class="alert alert-info">
+        You have not joined this event yet.
+    </div>
 
     <?php if (!$isEnded): ?>
-        <form method="POST" action="public_participate.php">
+        <form method="POST" action="../../api/public/public_participate.php">
             <input type="hidden" name="event_id" value="<?= $event_id ?>">
             <button class="btn btn-primary w-100">Participate</button>
         </form>
@@ -139,42 +188,59 @@ body { background:#f5f6fa; }
 
 <?php else: ?>
 
-    <hr>
+<div class="qr-card">
 
-    <?php if ($qrImageUrl): ?>
+    <h4 class="qr-title">Your Event QR Code</h4>
 
-        <div class="text-center">
+    <p class="qr-subtitle">
+        Show this QR to scanner for attendance
+    </p>
 
-            <img src="<?= $qrImageUrl ?>" class="qr-img mb-3">
+    <img class="qr-img" src="<?= $qrImageUrl ?>">
 
-            <?php if (!$isEnded): ?>
-                <a class="btn btn-primary"
-                   href="<?= $qrImageUrl ?>"
-                   download="event-qr.png">
-                    Save QR Code
-                </a>
-            <?php else: ?>
-                <button class="btn btn-secondary w-100" disabled>
-                    QR Disabled
-                </button>
-            <?php endif; ?>
+    <div class="qr-actions">
 
-        </div>
+        <a class="btn btn-primary"
+           href="<?= $qrDownloadUrl ?>">
+            Download QR
+        </a>
 
-    <?php endif; ?>
-
-    <form method="POST" class="mt-3"
-          onsubmit="return confirm('Cancel participation?');">
-        <button name="cancel" class="btn btn-danger w-100">
-            Cancel Participation
+        <button class="btn btn-outline-secondary"
+                onclick="copyQRText()">
+            Copy QR Data
         </button>
-    </form>
+
+    </div>
+
+    <input type="text" id="qrText" value="<?= $qrText ?>" hidden>
+
+</div>
+
+<form method="POST" class="mt-3"
+      onsubmit="return confirm('Cancel participation?');">
+    <button name="cancel" class="btn btn-danger w-100">
+        Cancel Participation
+    </button>
+</form>
 
 <?php endif; ?>
 
-<a href="public_event.php" class="btn btn-secondary w-100 mt-2">Back</a>
+<a href="public_event.php" class="btn btn-secondary w-100 mt-3">
+    Back
+</a>
 
 </div>
+
+<script>
+function copyQRText() {
+    let text = document.getElementById("qrText");
+    text.hidden = false;
+    text.select();
+    document.execCommand("copy");
+    text.hidden = true;
+    alert("QR data copied!");
+}
+</script>
 
 </body>
 </html>

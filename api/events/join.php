@@ -2,16 +2,24 @@
 session_start();
 require_once __DIR__ . "/../config/db.php";
 
+header("Content-Type: application/json");
+
 if (!isset($_SESSION['Pid'])) {
-    header("Location: ../../index.php");
+    echo json_encode([
+        "status" => "error",
+        "message" => "Unauthorized"
+    ]);
     exit();
 }
 
-$event_id = (int)($_GET['event_id'] ?? 0);
-$participant_id = (int)$_SESSION['Pid'];
+$event_id = filter_input(INPUT_POST, 'event_id', FILTER_VALIDATE_INT);
+$participant_id = (int) $_SESSION['Pid'];
 
-if ($event_id <= 0) {
-    header("Location: ../../ui/public/public_event.php");
+if (!$event_id) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Invalid event"
+    ]);
     exit();
 }
 
@@ -25,12 +33,16 @@ $stmt->execute();
 $event = $stmt->get_result()->fetch_assoc();
 
 if (!$event || $event['status'] !== 'approved') {
-    header("Location: ../../ui/public/public_event.php?msg=not_allowed");
+    echo json_encode([
+        "status" => "error",
+        "message" => "Event not available"
+    ]);
     exit();
 }
 
 $check = $dbc->prepare("
-    SELECT 1 FROM event_participants
+    SELECT 1
+    FROM event_participants
     WHERE event_id = ? AND participant_id = ?
     LIMIT 1
 ");
@@ -38,7 +50,10 @@ $check->bind_param("ii", $event_id, $participant_id);
 $check->execute();
 
 if ($check->get_result()->num_rows > 0) {
-    header("Location: ../../ui/public/public_event_details.php?id=$event_id");
+    echo json_encode([
+        "status" => "error",
+        "message" => "Already joined"
+    ]);
     exit();
 }
 
@@ -53,23 +68,63 @@ if (!empty($event['capacity'])) {
     $count = (int)$countStmt->get_result()->fetch_assoc()['total'];
 
     if ($count >= (int)$event['capacity']) {
-        header("Location: ../../ui/public/public_event.php?msg=full");
+        echo json_encode([
+            "status" => "error",
+            "message" => "Event full"
+        ]);
         exit();
     }
 }
 
-$insert = $dbc->prepare("
+$stmt = $dbc->prepare("
     INSERT INTO event_participants (event_id, participant_id)
     VALUES (?, ?)
 ");
-$insert->bind_param("ii", $event_id, $participant_id);
-$insert->execute();
+$stmt->bind_param("ii", $event_id, $participant_id);
 
-$qrText = "event_id={$event_id}&participant_id={$participant_id}";
+if (!$stmt->execute()) {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Join failed"
+    ]);
+    exit();
+}
 
-$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" .
-         urlencode($qrText);
+$checkQr = $dbc->prepare("
+    SELECT token
+    FROM qr_tokens
+    WHERE event_id = ? AND participant_id = ?
+    LIMIT 1
+");
+$checkQr->bind_param("ii", $event_id, $participant_id);
+$checkQr->execute();
+$existing = $checkQr->get_result()->fetch_assoc();
 
+if ($existing) {
 
-header("Location: ../../ui/public/public_event_details.php?id=$event_id");
-exit();
+    $token = $existing['token'];
+
+} else {
+
+    $token = bin2hex(random_bytes(16));
+    $expires_at = date("Y-m-d H:i:s", strtotime("+2 days"));
+
+    $insertQr = $dbc->prepare("
+        INSERT INTO qr_tokens (event_id, participant_id, token, expires_at)
+        VALUES (?, ?, ?, ?)
+    ");
+    $insertQr->bind_param("iiss", $event_id, $participant_id, $token, $expires_at);
+    $insertQr->execute();
+}
+
+$qr_url = "http://" . $_SERVER['HTTP_HOST'] .
+    "/enigma/api/qr/fetch.php?token=" . $token;
+
+echo json_encode([
+    "status" => "success",
+    "message" => "Joined successfully",
+    "data" => [
+        "token" => $token,
+        "qr_url" => $qr_url
+    ]
+]);

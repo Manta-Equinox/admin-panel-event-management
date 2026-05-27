@@ -52,12 +52,7 @@ $name = $_SESSION['Aname'] ?? $_SESSION['Pname'] ?? 'Guest';
             </a>
         </li>
         <?php } ?>
-        <li>
-        <a href="/ui/attendance/attendance_scan.php">
-            <i class='bx bx-qr-scan'></i>
-            <span class="links_name">Scan QR</span>
-        </a>
-    </li>
+
         <?php if ($role === 'participant') { ?>
         <li>
             <a href="/ui/public/public_event.php"

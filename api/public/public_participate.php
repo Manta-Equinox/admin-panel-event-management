@@ -5,7 +5,10 @@ require_once __DIR__ . "/../config/db.php";
 header("Content-Type: application/json");
 
 if (!isset($_SESSION['Pid'])) {
-    echo json_encode(["success" => false, "message" => "Unauthorized"]);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Unauthorized"
+    ]);
     exit();
 }
 
@@ -13,7 +16,10 @@ $event_id = filter_input(INPUT_POST, 'event_id', FILTER_VALIDATE_INT);
 $participant_id = (int) $_SESSION['Pid'];
 
 if (!$event_id) {
-    echo json_encode(["success" => false, "message" => "Invalid event"]);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Invalid event"
+    ]);
     exit();
 }
 
@@ -26,13 +32,11 @@ $stmt->bind_param("i", $event_id);
 $stmt->execute();
 $event = $stmt->get_result()->fetch_assoc();
 
-if (!$event) {
-    echo json_encode(["success" => false, "message" => "Event not found"]);
-    exit();
-}
-
-if ($event['status'] !== 'approved') {
-    echo json_encode(["success" => false, "message" => "Event not open"]);
+if (!$event || $event['status'] !== 'approved') {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Event not available"
+    ]);
     exit();
 }
 
@@ -46,7 +50,10 @@ $check->bind_param("ii", $event_id, $participant_id);
 $check->execute();
 
 if ($check->get_result()->num_rows > 0) {
-    echo json_encode(["success" => false, "message" => "Already joined"]);
+    echo json_encode([
+        "status" => "success",
+        "message" => "Already joined"
+    ]);
     exit();
 }
 
@@ -61,7 +68,10 @@ if (!empty($event['capacity'])) {
     $count = (int)$countStmt->get_result()->fetch_assoc()['total'];
 
     if ($count >= (int)$event['capacity']) {
-        echo json_encode(["success" => false, "message" => "Event full"]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Event full"
+        ]);
         exit();
     }
 }
@@ -71,30 +81,39 @@ $stmt = $dbc->prepare("
     VALUES (?, ?)
 ");
 $stmt->bind_param("ii", $event_id, $participant_id);
-
-if (!$stmt->execute()) {
-    echo json_encode(["success" => false, "message" => "Join failed"]);
-    exit();
-}
-
+$stmt->execute();
 
 $token = bin2hex(random_bytes(16));
 
-$qr_code = "http://" . $_SERVER['HTTP_HOST'] .
-    "/enigma/api/qr/fetch.php?token=" . $token;
+$expires = date("Y-m-d H:i:s", strtotime("+2 days"));
 
-$expires_at = date("Y-m-d H:i:s", strtotime("+2 days"));
-
-$q = $dbc->prepare("
-    INSERT INTO qr_tokens (event_id, participant_id, token, qr_code, expires_at)
-    VALUES (?, ?, ?, ?, ?)
+$checkQr = $dbc->prepare("
+    SELECT token
+    FROM qr_tokens
+    WHERE event_id = ? AND participant_id = ?
+    LIMIT 1
 ");
+$checkQr->bind_param("ii", $event_id, $participant_id);
+$checkQr->execute();
+$existing = $checkQr->get_result()->fetch_assoc();
 
-$q->bind_param("iisss", $event_id, $participant_id, $token, $qr_code, $expires_at);
-$q->execute();
+if (!$existing) {
+
+    $q = $dbc->prepare("
+        INSERT INTO qr_tokens (event_id, participant_id, token, expires_at)
+        VALUES (?, ?, ?, ?)
+    ");
+    $q->bind_param("iiss", $event_id, $participant_id, $token, $expires);
+    $q->execute();
+
+} else {
+    $token = $existing['token'];
+}
 
 echo json_encode([
-    "success" => true,
+    "status" => "success",
     "message" => "Joined successfully",
-    "token" => $token
+    "data" => [
+        "token" => $token
+    ]
 ]);

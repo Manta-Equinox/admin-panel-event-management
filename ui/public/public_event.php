@@ -45,15 +45,18 @@ $now = new DateTime("now");
 <head>
 <meta charset="UTF-8">
 <title>Public Events</title>
+
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
 body { background:#f5f6fa; }
+
 .header {
     background:#5469d4;
     color:white;
     padding:20px;
 }
+
 .event-card {
     border:none;
     border-radius:12px;
@@ -61,9 +64,11 @@ body { background:#f5f6fa; }
     transition:0.2s;
     height:100%;
 }
+
 .event-card:hover {
     transform:translateY(-4px);
 }
+
 .small-info {
     font-size:13px;
     color:#666;
@@ -90,7 +95,6 @@ body { background:#f5f6fa; }
 
 <?php
 $event_id = (int)$row['event_id'];
-$isJoined = isset($joined[$event_id]);
 
 $countStmt = $dbc->prepare("
     SELECT COUNT(*) AS total
@@ -107,7 +111,9 @@ $endTime   = $row['end_time'] ?: '23:59:59';
 $start = new DateTime($row['event_date'].' '.$startTime);
 $end   = new DateTime($row['event_date'].' '.$endTime);
 
-if ($end <= $start) $end->modify('+1 day');
+if ($end <= $start) {
+    $end->modify('+1 day');
+}
 
 if ($now < $start) {
     $status = "<span class='badge bg-info'>Upcoming</span>";
@@ -118,6 +124,8 @@ if ($now < $start) {
 }
 
 $isEnded = ($now > $end);
+
+$isJoined = isset($joined[$event_id]) && !$isEnded;
 ?>
 
 <div class="col-md-4">
@@ -142,17 +150,27 @@ $isEnded = ($now > $end);
    View Details
 </a>
 
-<?php if ($isJoined): ?>
-    <button class="btn btn-success w-100" disabled>Already Joined</button>
+<?php if ($isEnded): ?>
 
-<?php elseif ($isEnded): ?>
-    <button class="btn btn-secondary w-100" disabled>Event Ended</button>
+    <button class="btn btn-secondary w-100" disabled>
+        Event Ended
+    </button>
+
+<?php elseif ($isJoined): ?>
+
+    <button class="btn btn-success w-100" disabled>
+        Already Joined
+    </button>
 
 <?php else: ?>
-    <form method="POST" action="public_participate.php">
+
+    <form method="POST" action="../../api/public/public_participate.php">
         <input type="hidden" name="event_id" value="<?= $event_id ?>">
-        <button class="btn btn-primary w-100">Participate</button>
+        <button class="btn btn-primary w-100">
+            Participate
+        </button>
     </form>
+
 <?php endif; ?>
 
 </div>
