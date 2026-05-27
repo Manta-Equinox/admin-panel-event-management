@@ -49,15 +49,11 @@ $check = $dbc->prepare("
 $check->bind_param("ii", $event_id, $participant_id);
 $check->execute();
 
-if ($check->get_result()->num_rows > 0) {
-    echo json_encode([
-        "status" => "success",
-        "message" => "Already joined"
-    ]);
-    exit();
-}
+$alreadyJoined = $check->get_result()->num_rows > 0;
 
-if (!empty($event['capacity'])) {
+
+if (!empty($event['capacity']) && !$alreadyJoined) {
+
     $countStmt = $dbc->prepare("
         SELECT COUNT(*) AS total
         FROM event_participants
@@ -76,16 +72,16 @@ if (!empty($event['capacity'])) {
     }
 }
 
-$stmt = $dbc->prepare("
-    INSERT INTO event_participants (event_id, participant_id)
-    VALUES (?, ?)
-");
-$stmt->bind_param("ii", $event_id, $participant_id);
-$stmt->execute();
+if (!$alreadyJoined) {
 
-$token = bin2hex(random_bytes(16));
+    $insert = $dbc->prepare("
+        INSERT INTO event_participants (event_id, participant_id)
+        VALUES (?, ?)
+    ");
+    $insert->bind_param("ii", $event_id, $participant_id);
+    $insert->execute();
+}
 
-$expires = date("Y-m-d H:i:s", strtotime("+2 days"));
 
 $checkQr = $dbc->prepare("
     SELECT token
@@ -97,23 +93,29 @@ $checkQr->bind_param("ii", $event_id, $participant_id);
 $checkQr->execute();
 $existing = $checkQr->get_result()->fetch_assoc();
 
-if (!$existing) {
+if ($existing) {
 
-    $q = $dbc->prepare("
+    $token = $existing['token'];
+
+} else {
+
+    $token = bin2hex(random_bytes(16));
+    $expires = date("Y-m-d H:i:s", strtotime("+2 days"));
+
+    $insertQr = $dbc->prepare("
         INSERT INTO qr_tokens (event_id, participant_id, token, expires_at)
         VALUES (?, ?, ?, ?)
     ");
-    $q->bind_param("iiss", $event_id, $participant_id, $token, $expires);
-    $q->execute();
-
-} else {
-    $token = $existing['token'];
+    $insertQr->bind_param("iiss", $event_id, $participant_id, $token, $expires);
+    $insertQr->execute();
 }
 
 echo json_encode([
     "status" => "success",
-    "message" => "Joined successfully",
+    "message" => $alreadyJoined ? "Already joined" : "Joined successfully",
     "data" => [
-        "token" => $token
+        "token" => $token,
+        "qr_url" => "http://" . $_SERVER['HTTP_HOST'] .
+            "/enigma/api/qr/fetch.php?token=" . $token
     ]
 ]);

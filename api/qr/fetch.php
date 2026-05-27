@@ -14,6 +14,7 @@ $stmt = $dbc->prepare("
     WHERE token = ?
     LIMIT 1
 ");
+
 $stmt->bind_param("s", $token);
 $stmt->execute();
 $data = $stmt->get_result()->fetch_assoc();
@@ -23,9 +24,8 @@ if (!$data) {
     exit("Invalid token");
 }
 
-$qrData = $token;
-
-$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($qrData);
+$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data="
+    . urlencode($token);
 
 header("Content-Type: image/png");
 readfile($qrUrl);
