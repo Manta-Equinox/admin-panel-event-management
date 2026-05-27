@@ -30,7 +30,7 @@ if (!isset($dbc)) {
     exit();
 }
 
-$sql = "SELECT staff_id, email, password, role 
+$sql = "SELECT staff_id, name, email, password, role 
         FROM staff_users 
         WHERE email = ? 
         LIMIT 1";
@@ -72,6 +72,7 @@ echo json_encode([
     "role" => $user['role'],
     "data" => [
         "id" => $user['staff_id'],
+        "name" => $user['name'],
         "email" => $user['email']
     ]
 ]);
